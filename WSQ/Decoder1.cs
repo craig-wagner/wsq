@@ -3,29 +3,30 @@ using System.Collections.Generic;
 using System.Text;
 using System.Drawing;
 using System.Drawing.Imaging;
+
 namespace Wsqm
 {
     internal class Decoder1
     {
         public Bitmap Decode(byte[] data)
         {
-
             TokenD token = new TokenD(data);
+
             // token.initialize();
 
             /* Read the SOI marker. */
-            getCMarkerWSQ(token, WSQConstants.SOI_WSQ);
+            getCMarkerWSQ(token, WsqConstants.SOI_WSQ);
 
             /* Read in supporting tables up to the SOF marker. */
-            int marker = getCMarkerWSQ(token, WSQConstants.TBLS_N_SOF);
-            while (marker != WSQConstants.SOF_WSQ)
+            int marker = getCMarkerWSQ(token, WsqConstants.TBLS_N_SOF);
+            while (marker != WsqConstants.SOF_WSQ)
             {
                 getCTableWSQ(token, marker);
-                marker = getCMarkerWSQ(token, WSQConstants.TBLS_N_SOF);
+                marker = getCMarkerWSQ(token, WsqConstants.TBLS_N_SOF);
             }
 
             /* Read in the Frame Header. */
-            WSQHelper.HeaderFrm frmHeaderWSQ = getCFrameHeaderWSQ(token);
+            WsqHelper.HeaderFrm frmHeaderWSQ = getCFrameHeaderWSQ(token);
             int width = frmHeaderWSQ.width;
             int height = frmHeaderWSQ.height;
 
@@ -41,6 +42,7 @@ namespace Wsqm
             float[] fdata = unquantize(token, qdata, width, height);
 
             /* Done with quantized wavelet subband buffer. */
+
             //noinspection UnusedAssignment
             qdata = null;
 
@@ -48,6 +50,7 @@ namespace Wsqm
 
             /* Convert floating point pixels to unsigned char pixels. */
             byte[] cdata = convertImage2Byte(fdata, width, height, frmHeaderWSQ.mShift, frmHeaderWSQ.rScale);
+
             //noinspection UnusedAssignment
             fdata = null;
 
@@ -67,25 +70,26 @@ namespace Wsqm
 
             return bmp; //new Bitmap(cdata, width, height, ppi, 8, 1);
         }
+
         public byte[] DecodeArrayByte(byte[] data)
         {
-
             TokenD token = new TokenD(data);
+
             // token.initialize();
 
             /* Read the SOI marker. */
-            getCMarkerWSQ(token, WSQConstants.SOI_WSQ);
+            getCMarkerWSQ(token, WsqConstants.SOI_WSQ);
 
             /* Read in supporting tables up to the SOF marker. */
-            int marker = getCMarkerWSQ(token, WSQConstants.TBLS_N_SOF);
-            while (marker != WSQConstants.SOF_WSQ)
+            int marker = getCMarkerWSQ(token, WsqConstants.TBLS_N_SOF);
+            while (marker != WsqConstants.SOF_WSQ)
             {
                 getCTableWSQ(token, marker);
-                marker = getCMarkerWSQ(token, WSQConstants.TBLS_N_SOF);
+                marker = getCMarkerWSQ(token, WsqConstants.TBLS_N_SOF);
             }
 
             /* Read in the Frame Header. */
-            WSQHelper.HeaderFrm frmHeaderWSQ = getCFrameHeaderWSQ(token);
+            WsqHelper.HeaderFrm frmHeaderWSQ = getCFrameHeaderWSQ(token);
             int width = frmHeaderWSQ.width;
             int height = frmHeaderWSQ.height;
 
@@ -101,6 +105,7 @@ namespace Wsqm
             float[] fdata = unquantize(token, qdata, width, height);
 
             /* Done with quantized wavelet subband buffer. */
+
             //noinspection UnusedAssignment
             qdata = null;
 
@@ -151,53 +156,54 @@ namespace Wsqm
 
             int marker = token.readShort();
 
-
             switch (type)
             {
-                case WSQConstants.SOI_WSQ:
-                    if (marker != WSQConstants.SOI_WSQ)
+                case WsqConstants.SOI_WSQ:
+                    if (marker != WsqConstants.SOI_WSQ)
                     {
                         throw new SystemException("ERROR : getCMarkerWSQ : No SOI marker : " + marker);
                     }
 
                     return marker;
 
-                case WSQConstants.TBLS_N_SOF:
-                    if (marker != WSQConstants.DTT_WSQ
-                            && marker != WSQConstants.DQT_WSQ
-                            && marker != WSQConstants.DHT_WSQ
-                            && marker != WSQConstants.SOF_WSQ
-                            && marker != WSQConstants.COM_WSQ)
+                case WsqConstants.TBLS_N_SOF:
+                    if (marker != WsqConstants.DTT_WSQ
+                            && marker != WsqConstants.DQT_WSQ
+                            && marker != WsqConstants.DHT_WSQ
+                            && marker != WsqConstants.SOF_WSQ
+                            && marker != WsqConstants.COM_WSQ)
                     {
                         throw new SystemException("ERROR : getc_marker_wsq : No SOF, Table, or comment markers : " + marker);
                     }
 
                     return marker;
 
-                case WSQConstants.TBLS_N_SOB:
-                    if (marker != WSQConstants.DTT_WSQ
-                            && marker != WSQConstants.DQT_WSQ
-                            && marker != WSQConstants.DHT_WSQ
-                            && marker != WSQConstants.SOB_WSQ
-                            && marker != WSQConstants.COM_WSQ)
+                case WsqConstants.TBLS_N_SOB:
+                    if (marker != WsqConstants.DTT_WSQ
+                            && marker != WsqConstants.DQT_WSQ
+                            && marker != WsqConstants.DHT_WSQ
+                            && marker != WsqConstants.SOB_WSQ
+                            && marker != WsqConstants.COM_WSQ)
                     {
                         throw new SystemException("ERROR : getc_marker_wsq : No SOB, Table, or comment markers : " +
                                 marker);
                     }
                     return marker;
-                case WSQConstants.ANY_WSQ:
+
+                case WsqConstants.ANY_WSQ:
                     if ((marker & 0xff00) != 0xff00)
                     {
                         throw new SystemException("ERROR : getc_marker_wsq : no marker found : " + marker);
                     }
 
                     /* Added by MDG on 03-07-05 */
-                    if ((marker < WSQConstants.SOI_WSQ) || (marker > WSQConstants.COM_WSQ))
+                    if ((marker < WsqConstants.SOI_WSQ) || (marker > WsqConstants.COM_WSQ))
                     {
                         throw new SystemException("ERROR : getc_marker_wsq : not a valid marker : " + marker);
                     }
 
                     return marker;
+
                 default:
                     throw new SystemException("ERROR : getc_marker_wsq : Invalid marker : " + marker);
             }
@@ -207,20 +213,25 @@ namespace Wsqm
         {
             switch (marker)
             {
-                case WSQConstants.DTT_WSQ:
+                case WsqConstants.DTT_WSQ:
                     getCTransformTable(token);
                     return;
-                case WSQConstants.DQT_WSQ:
+
+                case WsqConstants.DQT_WSQ:
                     getCQuantizationTable(token);
                     return;
-                case WSQConstants.DHT_WSQ:
+
+                case WsqConstants.DHT_WSQ:
                     getCHuffmanTableWSQ(token);
                     return;
-                case WSQConstants.COM_WSQ:
+
+                case WsqConstants.COM_WSQ:
+
                     //shams: i don't use return value
                     String str;
                     str = getCComment(token);
                     return;
+
                 default:
                     throw new SystemException("ERROR: getCTableWSQ : Invalid table defined : " + marker);
             }
@@ -256,7 +267,6 @@ namespace Wsqm
             }
 
             float[] aLofilt = new float[aSize];
-
 
             aSize--;
             for (int cnt = 0; cnt <= aSize; cnt++)
@@ -383,7 +393,7 @@ namespace Wsqm
         public void getCHuffmanTableWSQ(TokenD token)
         {
             /* First time, read table len. */
-            WSQHelper.HuffmanTable firstHuffmanTable = getCHuffmanTable(token, WSQConstants.MAX_HUFFCOUNTS_WSQ, 0, true);
+            WsqHelper.HuffmanTable firstHuffmanTable = getCHuffmanTable(token, WsqConstants.MAX_HUFFCOUNTS_WSQ, 0, true);
 
             /* Store table into global structure list. */
             int tableId = firstHuffmanTable.tableId;
@@ -395,7 +405,7 @@ namespace Wsqm
             while (bytesLeft != 0)
             {
                 /* Read next table without rading table len. */
-                WSQHelper.HuffmanTable huffmantable = getCHuffmanTable(token, WSQConstants.MAX_HUFFCOUNTS_WSQ, bytesLeft, false);
+                WsqHelper.HuffmanTable huffmantable = getCHuffmanTable(token, WsqConstants.MAX_HUFFCOUNTS_WSQ, bytesLeft, false);
 
                 /* If table is already defined ... */
                 tableId = huffmantable.tableId;
@@ -412,10 +422,9 @@ namespace Wsqm
             }
         }
 
-        private WSQHelper.HuffmanTable getCHuffmanTable(TokenD token, int maxHuffcounts, int bytesLeft, bool readTableLen)
+        private WsqHelper.HuffmanTable getCHuffmanTable(TokenD token, int maxHuffcounts, int bytesLeft, bool readTableLen)
         {
-
-            WSQHelper.HuffmanTable huffmanTable = new WSQHelper.HuffmanTable();
+            WsqHelper.HuffmanTable huffmanTable = new WsqHelper.HuffmanTable();
 
             /* table_len */
             if (readTableLen)
@@ -439,16 +448,15 @@ namespace Wsqm
             huffmanTable.tableId = token.readByte();
             huffmanTable.bytesLeft--;
 
-
-            huffmanTable.huffbits = new int[WSQConstants.MAX_HUFFBITS];
+            huffmanTable.huffbits = new int[WsqConstants.MAX_HUFFBITS];
             int numHufvals = 0;
             /* L1 ... L16 */
-            for (int i = 0; i < WSQConstants.MAX_HUFFBITS; i++)
+            for (int i = 0; i < WsqConstants.MAX_HUFFBITS; i++)
             {
                 huffmanTable.huffbits[i] = token.readByte();
                 numHufvals += huffmanTable.huffbits[i];
             }
-            huffmanTable.bytesLeft -= WSQConstants.MAX_HUFFBITS;
+            huffmanTable.bytesLeft -= WsqConstants.MAX_HUFFBITS;
 
             if (numHufvals > maxHuffcounts + 1)
             {
@@ -469,9 +477,9 @@ namespace Wsqm
             return huffmanTable;
         }
 
-        private WSQHelper.HeaderFrm getCFrameHeaderWSQ(TokenD token)
+        private WsqHelper.HeaderFrm getCFrameHeaderWSQ(TokenD token)
         {
-            WSQHelper.HeaderFrm headerFrm = new WSQHelper.HeaderFrm();
+            WsqHelper.HeaderFrm headerFrm = new WsqHelper.HeaderFrm();
 
             //noinspection UnusedDeclaration
             int hdrSize = token.readShort(); /* header size */
@@ -512,9 +520,9 @@ namespace Wsqm
         private void buildWSQTrees(TokenD token, int width, int height)
         {
             /* Build a W-TREE structure for the image. */
-            buildWTree(token, WSQConstants.W_TREELEN, width, height);
+            buildWTree(token, WsqConstants.W_TREELEN, width, height);
             /* Build a Q-TREE structure for the image. */
-            buildQTree(token, WSQConstants.Q_TREELEN);
+            buildQTree(token, WsqConstants.Q_TREELEN);
         }
 
         private void buildWTree(TokenD token, int wtreelen, int width, int height)
@@ -633,7 +641,6 @@ namespace Wsqm
                 token.wtree[p2 + 3].x = token.wtree[p2 + 1].x;
             }
             token.wtree[p2 + 2].lenx = token.wtree[p2].lenx;
-
 
             if (eveny == 0)
             {
@@ -766,7 +773,6 @@ namespace Wsqm
             token.qtree[p + 2].y = y + token.qtree[p].leny;
             token.qtree[p + 3].y = token.qtree[p + 2].y;
 
-
             evenx = temp2x % 2;
 
             token.qtree[p + 4].x = x + tempx;
@@ -795,7 +801,6 @@ namespace Wsqm
             }
             token.qtree[p + 5].x = token.qtree[p + 4].x + token.qtree[p + 4].lenx;
             token.qtree[p + 7].x = token.qtree[p + 5].x;
-
 
             eveny = temp2y % 2;
 
@@ -826,7 +831,6 @@ namespace Wsqm
             token.qtree[p + 10].y = token.qtree[p + 8].y + token.qtree[p + 8].leny;
             token.qtree[p + 11].y = token.qtree[p + 10].y;
 
-
             token.qtree[p + 12].x = token.qtree[p + 4].x;
             token.qtree[p + 13].x = token.qtree[p + 5].x;
             token.qtree[p + 14].x = token.qtree[p + 4].x;
@@ -853,7 +857,6 @@ namespace Wsqm
             p = start;
             evenx = lenx % 2;
             eveny = leny % 2;
-
 
             token.qtree[p].x = x;
             token.qtree[p + 2].x = x;
@@ -897,26 +900,25 @@ namespace Wsqm
         {
             int[] qdata = new int[size];
 
-            int[] maxcode = new int[WSQConstants.MAX_HUFFBITS + 1];
-            int[] mincode = new int[WSQConstants.MAX_HUFFBITS + 1];
-            int[] valptr = new int[WSQConstants.MAX_HUFFBITS + 1];
+            int[] maxcode = new int[WsqConstants.MAX_HUFFBITS + 1];
+            int[] mincode = new int[WsqConstants.MAX_HUFFBITS + 1];
+            int[] valptr = new int[WsqConstants.MAX_HUFFBITS + 1];
 
-            IntRef marker = new IntRef(getCMarkerWSQ(token, WSQConstants.TBLS_N_SOB));
+            IntRef marker = new IntRef(getCMarkerWSQ(token, WsqConstants.TBLS_N_SOB));
 
             IntRef bitCount = new IntRef(0); /* bit count for getc_nextbits_wsq routine */
             IntRef nextByte = new IntRef(0); /*next byte of buffer*/
             int hufftableId = 0; /* huffman table number */
             int ip = 0;
 
-            while (marker.value != WSQConstants.EOI_WSQ)
+            while (marker.value != WsqConstants.EOI_WSQ)
             {
-
                 if (marker.value != 0)
                 {
-                    while (marker.value != WSQConstants.SOB_WSQ)
+                    while (marker.value != WsqConstants.SOB_WSQ)
                     {
                         getCTableWSQ(token, marker.value);
-                        marker.value = getCMarkerWSQ(token, WSQConstants.TBLS_N_SOB);
+                        marker.value = getCMarkerWSQ(token, WsqConstants.TBLS_N_SOB);
                     }
                     hufftableId = getCBlockHeader(token); /* huffman table number */
 
@@ -926,7 +928,7 @@ namespace Wsqm
                     }
 
                     /* the next two routines reconstruct the huffman tables */
-                    WSQHelper.HuffCode[] hufftable = buildHuffsizes(token.tableDHT[hufftableId].huffbits, WSQConstants.MAX_HUFFCOUNTS_WSQ);
+                    WsqHelper.HuffCode[] hufftable = buildHuffsizes(token.tableDHT[hufftableId].huffbits, WsqConstants.MAX_HUFFCOUNTS_WSQ);
                     buildHuffcodes(hufftable);
 
                     /* this routine builds a set of three tables used in decoding */
@@ -960,7 +962,6 @@ namespace Wsqm
                 else if (nodeptr == 101)
                 {
                     qdata[ip++] = getCNextbitsWSQ(token, marker, bitCount, 8, nextByte);
-
                 }
                 else if (nodeptr == 102)
                 {
@@ -1005,19 +1006,19 @@ namespace Wsqm
             return token.readByte();
         }
 
-        private WSQHelper.HuffCode[] buildHuffsizes(int[] huffbits, int maxHuffcounts)
+        private WsqHelper.HuffCode[] buildHuffsizes(int[] huffbits, int maxHuffcounts)
         {
-            WSQHelper.HuffCode[] huffcodeTable;    /*table of huffman codes and sizes*/
+            WsqHelper.HuffCode[] huffcodeTable;    /*table of huffman codes and sizes*/
             int numberOfCodes = 1;     /*the number codes for a given code size*/
 
-            huffcodeTable = new WSQHelper.HuffCode[maxHuffcounts + 1];
+            huffcodeTable = new WsqHelper.HuffCode[maxHuffcounts + 1];
 
             int tempSize = 0;
-            for (int codeSize = 1; codeSize <= WSQConstants.MAX_HUFFBITS; codeSize++)
+            for (int codeSize = 1; codeSize <= WsqConstants.MAX_HUFFBITS; codeSize++)
             {
                 while (numberOfCodes <= huffbits[codeSize - 1])
                 {
-                    huffcodeTable[tempSize] = new WSQHelper.HuffCode();
+                    huffcodeTable[tempSize] = new WsqHelper.HuffCode();
                     huffcodeTable[tempSize].size = codeSize;
                     tempSize++;
                     numberOfCodes++;
@@ -1025,13 +1026,13 @@ namespace Wsqm
                 numberOfCodes = 1;
             }
 
-            huffcodeTable[tempSize] = new WSQHelper.HuffCode();
+            huffcodeTable[tempSize] = new WsqHelper.HuffCode();
             huffcodeTable[tempSize].size = 0;
 
             return huffcodeTable;
         }
 
-        private void buildHuffcodes(WSQHelper.HuffCode[] huffcodeTable)
+        private void buildHuffcodes(WsqHelper.HuffCode[] huffcodeTable)
         {
             short tempCode = 0;  /*used to construct code word*/
             int pointer = 0;     /*pointer to code word information*/
@@ -1062,9 +1063,9 @@ namespace Wsqm
             } while (huffcodeTable[pointer].size == tempSize);
         }
 
-        private void genDecodeTable(WSQHelper.HuffCode[] huffcodeTable, int[] maxcode, int[] mincode, int[] valptr, int[] huffbits)
+        private void genDecodeTable(WsqHelper.HuffCode[] huffcodeTable, int[] maxcode, int[] mincode, int[] valptr, int[] huffbits)
         {
-            for (int i = 0; i <= WSQConstants.MAX_HUFFBITS; i++)
+            for (int i = 0; i <= WsqConstants.MAX_HUFFBITS; i++)
             {
                 maxcode[i] = 0;
                 mincode[i] = 0;
@@ -1072,7 +1073,7 @@ namespace Wsqm
             }
 
             int i2 = 0;
-            for (int i = 1; i <= WSQConstants.MAX_HUFFBITS; i++)
+            for (int i = 1; i <= WsqConstants.MAX_HUFFBITS; i++)
             {
                 if (huffbits[i - 1] == 0)
                 {
@@ -1089,7 +1090,6 @@ namespace Wsqm
 
         private int decodeDataMem(TokenD token, int[] mincode, int[] maxcode, int[] valptr, int[] huffvalues, IntRef bitCount, IntRef marker, IntRef nextByte)
         {
-
             short code = (short)getCNextbitsWSQ(token, marker, bitCount, 1, nextByte);   /* becomes a huffman code word  (one bit at a time)*/
             if (marker.value != 0)
             {
@@ -1140,9 +1140,9 @@ namespace Wsqm
 
             if (bitsReq <= bitCount.value)
             {
-                bits = (nextByte.value >> (bitCount.value - bitsReq)) & (WSQConstants.BITMASK[bitsReq]);
+                bits = (nextByte.value >> (bitCount.value - bitsReq)) & (WsqConstants.BITMASK[bitsReq]);
                 bitCount.value -= bitsReq;
-                nextByte.value &= WSQConstants.BITMASK[bitCount.value];
+                nextByte.value &= WsqConstants.BITMASK[bitCount.value];
             }
             else
             {
@@ -1168,7 +1168,7 @@ namespace Wsqm
             float binCenter = token.tableDQT.binCenter; /* quantizer bin center */
 
             int sptr = 0;
-            for (int cnt = 0; cnt < WSQConstants.NUM_SUBBANDS; cnt++)
+            for (int cnt = 0; cnt < WsqConstants.NUM_SUBBANDS; cnt++)
             {
                 if (token.tableDQT.qBin[cnt] == 0.0)
                 {
@@ -1223,7 +1223,7 @@ namespace Wsqm
             float[] fdataTemp = new float[numPix];
 
             /* Reconstruct floating point pixmap from wavelet subband buffer. */
-            for (int node = WSQConstants.W_TREELEN - 1; node >= 0; node--)
+            for (int node = WsqConstants.W_TREELEN - 1; node >= 0; node--)
             {
                 int fdataBse = (token.wtree[node].y * width) + token.wtree[node].x;
                 joinLets(fdataTemp, fdata, 0, fdataBse, token.wtree[node].lenx, token.wtree[node].leny,
@@ -1252,387 +1252,383 @@ namespace Wsqm
                 int hsz,   /* NEW */
                 float[] lo,      /* filter coefficients */
                 int lsz,   /* NEW */
-                int inv)        /* spectral inversion? */ {
-                    int lp0, lp1;
-                    int hp0, hp1;
-                    int lopass, hipass;   /* lo/hi pass image pointers */
-                    int limg, himg;
-                    int pix, cl_rw;      /* pixel counter and column/row counter */
-                    int i, da_ev;         /* if "scanline" is even or odd and */
-                    int loc, hoc;
-                    int hlen, llen;
-                    int nstr, pstr;
-                    int tap;
-                    int fi_ev;
-                    int olle, ohle, olre, ohre;
-                    int lle, lle2, lre, lre2;
-                    int hle, hle2, hre, hre2;
-                    int lpx, lspx;
-                    int lpxstr, lspxstr;
-                    int lstap, lotap;
-                    int hpx, hspx;
-                    int hpxstr, hspxstr;
-                    int hstap, hotap;
-                    int asym, fhre = 0, ofhre;
-                    float ssfac, osfac, sfac;
+                int inv)        /* spectral inversion? */
+        {
+            int lp0, lp1;
+            int hp0, hp1;
+            int lopass, hipass;   /* lo/hi pass image pointers */
+            int limg, himg;
+            int pix, cl_rw;      /* pixel counter and column/row counter */
+            int i, da_ev;         /* if "scanline" is even or odd and */
+            int loc, hoc;
+            int hlen, llen;
+            int nstr, pstr;
+            int tap;
+            int fi_ev;
+            int olle, ohle, olre, ohre;
+            int lle, lle2, lre, lre2;
+            int hle, hle2, hre, hre2;
+            int lpx, lspx;
+            int lpxstr, lspxstr;
+            int lstap, lotap;
+            int hpx, hspx;
+            int hpxstr, hspxstr;
+            int hstap, hotap;
+            int asym, fhre = 0, ofhre;
+            float ssfac, osfac, sfac;
 
-                    da_ev = len2 % 2;
-                    fi_ev = lsz % 2;
-                    pstr = stride;
-                    nstr = -pstr;
-                    if (da_ev != 0)
-                    {
-                        llen = (len2 + 1) / 2;
-                        hlen = llen - 1;
-                    }
-                    else
-                    {
-                        llen = len2 / 2;
-                        hlen = llen;
-                    }
+            da_ev = len2 % 2;
+            fi_ev = lsz % 2;
+            pstr = stride;
+            nstr = -pstr;
+            if (da_ev != 0)
+            {
+                llen = (len2 + 1) / 2;
+                hlen = llen - 1;
+            }
+            else
+            {
+                llen = len2 / 2;
+                hlen = llen;
+            }
 
-                    if (fi_ev != 0)
-                    {
-                        asym = 0;
-                        ssfac = 1.0f;
-                        ofhre = 0;
-                        loc = (lsz - 1) / 4;
-                        hoc = (hsz + 1) / 4 - 1;
-                        lotap = ((lsz - 1) / 2) % 2;
-                        hotap = ((hsz + 1) / 2) % 2;
-                        if (da_ev != 0)
-                        {
-                            olle = 0;
-                            olre = 0;
-                            ohle = 1;
-                            ohre = 1;
-                        }
-                        else
-                        {
-                            olle = 0;
-                            olre = 1;
-                            ohle = 1;
-                            ohre = 0;
-                        }
-                    }
-                    else
-                    {
-                        asym = 1;
-                        ssfac = -1.0f;
-                        ofhre = 2;
-                        loc = lsz / 4 - 1;
-                        hoc = hsz / 4 - 1;
-                        lotap = (lsz / 2) % 2;
-                        hotap = (hsz / 2) % 2;
-                        if (da_ev != 0)
-                        {
-                            olle = 1;
-                            olre = 0;
-                            ohle = 1;
-                            ohre = 1;
-                        }
-                        else
-                        {
-                            olle = 1;
-                            olre = 1;
-                            ohle = 1;
-                            ohre = 1;
-                        }
-
-                        if (loc == -1)
-                        {
-                            loc = 0;
-                            olle = 0;
-                        }
-                        if (hoc == -1)
-                        {
-                            hoc = 0;
-                            ohle = 0;
-                        }
-
-                        for (i = 0; i < hsz; i++)
-                            hi[i] *= -1.0F;
-                    }
-
-
-                    for (cl_rw = 0; cl_rw < len1; cl_rw++)
-                    {
-                        limg = newIndex + cl_rw * pitch;
-                        himg = limg;
-                        newdata[himg] = 0.0f;
-                        newdata[himg + stride] = 0.0f;
-                        if (inv != 0)
-                        {
-                            hipass = oldIndex + cl_rw * pitch;
-                            lopass = hipass + stride * hlen;
-                        }
-                        else
-                        {
-                            lopass = oldIndex + cl_rw * pitch;
-                            hipass = lopass + stride * llen;
-                        }
-
-
-                        lp0 = lopass;
-                        lp1 = lp0 + (llen - 1) * stride;
-                        lspx = lp0 + (loc * stride);
-                        lspxstr = nstr;
-                        lstap = lotap;
-                        lle2 = olle;
-                        lre2 = olre;
-
-                        hp0 = hipass;
-                        hp1 = hp0 + (hlen - 1) * stride;
-                        hspx = hp0 + (hoc * stride);
-                        hspxstr = nstr;
-                        hstap = hotap;
-                        hle2 = ohle;
-                        hre2 = ohre;
-                        osfac = ssfac;
-
-                        for (pix = 0; pix < hlen; pix++)
-                        {
-                            for (tap = lstap; tap >= 0; tap--)
-                            {
-                                lle = lle2;
-                                lre = lre2;
-                                lpx = lspx;
-                                lpxstr = lspxstr;
-
-                                newdata[limg] = olddata[lpx] * lo[tap];
-                                for (i = tap + 2; i < lsz; i += 2)
-                                {
-                                    if (lpx == lp0)
-                                    {
-                                        if (lle != 0)
-                                        {
-                                            lpxstr = 0;
-                                            lle = 0;
-                                        }
-                                        else
-                                            lpxstr = pstr;
-                                    }
-                                    if (lpx == lp1)
-                                    {
-                                        if (lre != 0)
-                                        {
-                                            lpxstr = 0;
-                                            lre = 0;
-                                        }
-                                        else
-                                            lpxstr = nstr;
-                                    }
-                                    lpx += lpxstr;
-                                    newdata[limg] += olddata[lpx] * lo[i];
-                                }
-                                limg += stride;
-                            }
-                            if (lspx == lp0)
-                            {
-                                if (lle2 != 0)
-                                {
-                                    lspxstr = 0;
-                                    lle2 = 0;
-                                }
-                                else
-                                    lspxstr = pstr;
-                            }
-                            lspx += lspxstr;
-                            lstap = 1;
-
-                            for (tap = hstap; tap >= 0; tap--)
-                            {
-                                hle = hle2;
-                                hre = hre2;
-                                hpx = hspx;
-                                hpxstr = hspxstr;
-                                fhre = ofhre;
-                                sfac = osfac;
-
-                                for (i = tap; i < hsz; i += 2)
-                                {
-                                    if (hpx == hp0)
-                                    {
-                                        if (hle != 0)
-                                        {
-                                            hpxstr = 0;
-                                            hle = 0;
-                                        }
-                                        else
-                                        {
-                                            hpxstr = pstr;
-                                            sfac = 1.0f;
-                                        }
-                                    }
-                                    if (hpx == hp1)
-                                    {
-                                        if (hre != 0)
-                                        {
-                                            hpxstr = 0;
-                                            hre = 0;
-                                            if (asym != 0 && da_ev != 0)
-                                            {
-                                                hre = 1;
-                                                fhre--;
-                                                sfac = (float)fhre;
-                                                if (sfac == 0.0)
-                                                    hre = 0;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            hpxstr = nstr;
-                                            if (asym != 0)
-                                                sfac = -1.0f;
-                                        }
-                                    }
-                                    newdata[himg] += olddata[hpx] * hi[i] * sfac;
-                                    hpx += hpxstr;
-                                }
-                                himg += stride;
-                            }
-                            if (hspx == hp0)
-                            {
-                                if (hle2 != 0)
-                                {
-                                    hspxstr = 0;
-                                    hle2 = 0;
-                                }
-                                else
-                                {
-                                    hspxstr = pstr;
-                                    osfac = 1.0f;
-                                }
-                            }
-                            hspx += hspxstr;
-                            hstap = 1;
-                        }
-
-
-                        if (da_ev != 0)
-                            if (lotap != 0)
-                                lstap = 1;
-                            else
-                                lstap = 0;
-                        else if (lotap != 0)
-                            lstap = 2;
-                        else
-                            lstap = 1;
-
-                        for (tap = 1; tap >= lstap; tap--)
-                        {
-                            lle = lle2;
-                            lre = lre2;
-                            lpx = lspx;
-                            lpxstr = lspxstr;
-
-                            newdata[limg] = olddata[lpx] * lo[tap];
-                            for (i = tap + 2; i < lsz; i += 2)
-                            {
-                                if (lpx == lp0)
-                                {
-                                    if (lle != 0)
-                                    {
-                                        lpxstr = 0;
-                                        lle = 0;
-                                    }
-                                    else
-                                        lpxstr = pstr;
-                                }
-                                if (lpx == lp1)
-                                {
-                                    if (lre != 0)
-                                    {
-                                        lpxstr = 0;
-                                        lre = 0;
-                                    }
-                                    else
-                                        lpxstr = nstr;
-                                }
-                                lpx += lpxstr;
-                                newdata[limg] += olddata[lpx] * lo[i];
-                            }
-                            limg += stride;
-                        }
-
-
-                        if (da_ev != 0)
-                        {
-                            if (hotap != 0)
-                                hstap = 1;
-                            else
-                                hstap = 0;
-
-                            if (hsz == 2)
-                            {
-                                hspx -= hspxstr;
-                                fhre = 1;
-                            }
-                        }
-                        else if (hotap != 0)
-                            hstap = 2;
-                        else
-                            hstap = 1;
-
-
-                        for (tap = 1; tap >= hstap; tap--)
-                        {
-                            hle = hle2;
-                            hre = hre2;
-                            hpx = hspx;
-                            hpxstr = hspxstr;
-                            sfac = osfac;
-                            if (hsz != 2)
-                                fhre = ofhre;
-
-                            for (i = tap; i < hsz; i += 2)
-                            {
-                                if (hpx == hp0)
-                                {
-                                    if (hle != 0)
-                                    {
-                                        hpxstr = 0;
-                                        hle = 0;
-                                    }
-                                    else
-                                    {
-                                        hpxstr = pstr;
-                                        sfac = 1.0f;
-                                    }
-                                }
-                                if (hpx == hp1)
-                                {
-                                    if (hre != 0)
-                                    {
-                                        hpxstr = 0;
-                                        hre = 0;
-                                        if (asym != 0 && da_ev != 0)
-                                        {
-                                            hre = 1;
-                                            fhre--;
-                                            sfac = (float)fhre;
-                                            if (sfac == 0.0)
-                                                hre = 0;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        hpxstr = nstr;
-                                        if (asym != 0)
-                                            sfac = -1.0f;
-                                    }
-                                }
-                                newdata[himg] += olddata[hpx] * hi[i] * sfac;
-                                hpx += hpxstr;
-                            }
-                            himg += stride;
-                        }
-                    }
-
-                    if (fi_ev == 0)
-                        for (i = 0; i < hsz; i++)
-                            hi[i] *= -1.0F;
+            if (fi_ev != 0)
+            {
+                asym = 0;
+                ssfac = 1.0f;
+                ofhre = 0;
+                loc = (lsz - 1) / 4;
+                hoc = (hsz + 1) / 4 - 1;
+                lotap = ((lsz - 1) / 2) % 2;
+                hotap = ((hsz + 1) / 2) % 2;
+                if (da_ev != 0)
+                {
+                    olle = 0;
+                    olre = 0;
+                    ohle = 1;
+                    ohre = 1;
                 }
+                else
+                {
+                    olle = 0;
+                    olre = 1;
+                    ohle = 1;
+                    ohre = 0;
+                }
+            }
+            else
+            {
+                asym = 1;
+                ssfac = -1.0f;
+                ofhre = 2;
+                loc = lsz / 4 - 1;
+                hoc = hsz / 4 - 1;
+                lotap = (lsz / 2) % 2;
+                hotap = (hsz / 2) % 2;
+                if (da_ev != 0)
+                {
+                    olle = 1;
+                    olre = 0;
+                    ohle = 1;
+                    ohre = 1;
+                }
+                else
+                {
+                    olle = 1;
+                    olre = 1;
+                    ohle = 1;
+                    ohre = 1;
+                }
+
+                if (loc == -1)
+                {
+                    loc = 0;
+                    olle = 0;
+                }
+                if (hoc == -1)
+                {
+                    hoc = 0;
+                    ohle = 0;
+                }
+
+                for (i = 0; i < hsz; i++)
+                    hi[i] *= -1.0F;
+            }
+
+            for (cl_rw = 0; cl_rw < len1; cl_rw++)
+            {
+                limg = newIndex + cl_rw * pitch;
+                himg = limg;
+                newdata[himg] = 0.0f;
+                newdata[himg + stride] = 0.0f;
+                if (inv != 0)
+                {
+                    hipass = oldIndex + cl_rw * pitch;
+                    lopass = hipass + stride * hlen;
+                }
+                else
+                {
+                    lopass = oldIndex + cl_rw * pitch;
+                    hipass = lopass + stride * llen;
+                }
+
+                lp0 = lopass;
+                lp1 = lp0 + (llen - 1) * stride;
+                lspx = lp0 + (loc * stride);
+                lspxstr = nstr;
+                lstap = lotap;
+                lle2 = olle;
+                lre2 = olre;
+
+                hp0 = hipass;
+                hp1 = hp0 + (hlen - 1) * stride;
+                hspx = hp0 + (hoc * stride);
+                hspxstr = nstr;
+                hstap = hotap;
+                hle2 = ohle;
+                hre2 = ohre;
+                osfac = ssfac;
+
+                for (pix = 0; pix < hlen; pix++)
+                {
+                    for (tap = lstap; tap >= 0; tap--)
+                    {
+                        lle = lle2;
+                        lre = lre2;
+                        lpx = lspx;
+                        lpxstr = lspxstr;
+
+                        newdata[limg] = olddata[lpx] * lo[tap];
+                        for (i = tap + 2; i < lsz; i += 2)
+                        {
+                            if (lpx == lp0)
+                            {
+                                if (lle != 0)
+                                {
+                                    lpxstr = 0;
+                                    lle = 0;
+                                }
+                                else
+                                    lpxstr = pstr;
+                            }
+                            if (lpx == lp1)
+                            {
+                                if (lre != 0)
+                                {
+                                    lpxstr = 0;
+                                    lre = 0;
+                                }
+                                else
+                                    lpxstr = nstr;
+                            }
+                            lpx += lpxstr;
+                            newdata[limg] += olddata[lpx] * lo[i];
+                        }
+                        limg += stride;
+                    }
+                    if (lspx == lp0)
+                    {
+                        if (lle2 != 0)
+                        {
+                            lspxstr = 0;
+                            lle2 = 0;
+                        }
+                        else
+                            lspxstr = pstr;
+                    }
+                    lspx += lspxstr;
+                    lstap = 1;
+
+                    for (tap = hstap; tap >= 0; tap--)
+                    {
+                        hle = hle2;
+                        hre = hre2;
+                        hpx = hspx;
+                        hpxstr = hspxstr;
+                        fhre = ofhre;
+                        sfac = osfac;
+
+                        for (i = tap; i < hsz; i += 2)
+                        {
+                            if (hpx == hp0)
+                            {
+                                if (hle != 0)
+                                {
+                                    hpxstr = 0;
+                                    hle = 0;
+                                }
+                                else
+                                {
+                                    hpxstr = pstr;
+                                    sfac = 1.0f;
+                                }
+                            }
+                            if (hpx == hp1)
+                            {
+                                if (hre != 0)
+                                {
+                                    hpxstr = 0;
+                                    hre = 0;
+                                    if (asym != 0 && da_ev != 0)
+                                    {
+                                        hre = 1;
+                                        fhre--;
+                                        sfac = (float)fhre;
+                                        if (sfac == 0.0)
+                                            hre = 0;
+                                    }
+                                }
+                                else
+                                {
+                                    hpxstr = nstr;
+                                    if (asym != 0)
+                                        sfac = -1.0f;
+                                }
+                            }
+                            newdata[himg] += olddata[hpx] * hi[i] * sfac;
+                            hpx += hpxstr;
+                        }
+                        himg += stride;
+                    }
+                    if (hspx == hp0)
+                    {
+                        if (hle2 != 0)
+                        {
+                            hspxstr = 0;
+                            hle2 = 0;
+                        }
+                        else
+                        {
+                            hspxstr = pstr;
+                            osfac = 1.0f;
+                        }
+                    }
+                    hspx += hspxstr;
+                    hstap = 1;
+                }
+
+                if (da_ev != 0)
+                    if (lotap != 0)
+                        lstap = 1;
+                    else
+                        lstap = 0;
+                else if (lotap != 0)
+                    lstap = 2;
+                else
+                    lstap = 1;
+
+                for (tap = 1; tap >= lstap; tap--)
+                {
+                    lle = lle2;
+                    lre = lre2;
+                    lpx = lspx;
+                    lpxstr = lspxstr;
+
+                    newdata[limg] = olddata[lpx] * lo[tap];
+                    for (i = tap + 2; i < lsz; i += 2)
+                    {
+                        if (lpx == lp0)
+                        {
+                            if (lle != 0)
+                            {
+                                lpxstr = 0;
+                                lle = 0;
+                            }
+                            else
+                                lpxstr = pstr;
+                        }
+                        if (lpx == lp1)
+                        {
+                            if (lre != 0)
+                            {
+                                lpxstr = 0;
+                                lre = 0;
+                            }
+                            else
+                                lpxstr = nstr;
+                        }
+                        lpx += lpxstr;
+                        newdata[limg] += olddata[lpx] * lo[i];
+                    }
+                    limg += stride;
+                }
+
+                if (da_ev != 0)
+                {
+                    if (hotap != 0)
+                        hstap = 1;
+                    else
+                        hstap = 0;
+
+                    if (hsz == 2)
+                    {
+                        hspx -= hspxstr;
+                        fhre = 1;
+                    }
+                }
+                else if (hotap != 0)
+                    hstap = 2;
+                else
+                    hstap = 1;
+
+                for (tap = 1; tap >= hstap; tap--)
+                {
+                    hle = hle2;
+                    hre = hre2;
+                    hpx = hspx;
+                    hpxstr = hspxstr;
+                    sfac = osfac;
+                    if (hsz != 2)
+                        fhre = ofhre;
+
+                    for (i = tap; i < hsz; i += 2)
+                    {
+                        if (hpx == hp0)
+                        {
+                            if (hle != 0)
+                            {
+                                hpxstr = 0;
+                                hle = 0;
+                            }
+                            else
+                            {
+                                hpxstr = pstr;
+                                sfac = 1.0f;
+                            }
+                        }
+                        if (hpx == hp1)
+                        {
+                            if (hre != 0)
+                            {
+                                hpxstr = 0;
+                                hre = 0;
+                                if (asym != 0 && da_ev != 0)
+                                {
+                                    hre = 1;
+                                    fhre--;
+                                    sfac = (float)fhre;
+                                    if (sfac == 0.0)
+                                        hre = 0;
+                                }
+                            }
+                            else
+                            {
+                                hpxstr = nstr;
+                                if (asym != 0)
+                                    sfac = -1.0f;
+                            }
+                        }
+                        newdata[himg] += olddata[hpx] * hi[i] * sfac;
+                        hpx += hpxstr;
+                    }
+                    himg += stride;
+                }
+            }
+
+            if (fi_ev == 0)
+                for (i = 0; i < hsz; i++)
+                    hi[i] *= -1.0F;
+        }
 
         private byte[] convertImage2Byte(float[] img, int width, int height, float mShift, float rScale)
         {
@@ -1665,5 +1661,4 @@ namespace Wsqm
             return data;
         }
     }
-    
 }

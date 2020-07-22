@@ -1,10 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using Wsqm;
 
@@ -19,23 +13,21 @@ namespace wsqEncodeDecode
 
         private void Decode_Click(object sender, EventArgs e)
         {
-            WSQ dec = new WSQ();
-            String[] comentario = null;
-
-            comentario = new String[2];
-            comentario[0] = "humberto";
-            comentario[1] = "humberto";
-
-            dec.EnconderFile(@"D:\borrar\prueba2.bmp", @"D:\borrar\prueba2.wsq",
-                                    comentario,
-                                    0.75f);
+            var dec = new Wsq();
+            dec.Decode(
+                @"C:\Users\cwagner\OneDrive - Sterling Talent Solutions\Documents\Development\Craig's Fingerprints\Rolled_LeftIndex.wsq",
+                @"C:\Users\cwagner\OneDrive - Sterling Talent Solutions\Documents\Development\Craig's Fingerprints\Rolled_LeftIndex2.png");
         }
 
         private void Encode_Click(object sender, EventArgs e)
         {
-            WSQ dec=new WSQ();
+            var dec = new Wsq();
+            var comentario = new[] { "comment1", "comment2" };
 
-            dec.DecoderFile(@"D:\borrar\prueba1.wsq", @"D:\borrar\prueba1.tif");
+            dec.Encode(
+                @"C:\Users\cwagner\OneDrive - Sterling Talent Solutions\Documents\Development\Craig's Fingerprints\Rolled_LeftIndex.png",
+                @"C:\Users\cwagner\OneDrive - Sterling Talent Solutions\Documents\Development\Craig's Fingerprints\Rolled_LeftIndex.wsq",
+                comentario, 0.75f);
         }
     }
 }

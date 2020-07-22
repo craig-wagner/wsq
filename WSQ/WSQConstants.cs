@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace Wsqm
+﻿namespace Wsqm
 {
-    internal class WSQConstants : NISTConstants
+    internal static class WsqConstants
     {
         /*used to "mask out" n number of bits from data stream*/
         public static int[] BITMASK = { 0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff };
@@ -19,7 +14,6 @@ namespace Wsqm
 
         public const int MAX_HIFILT = 7;
         public const int MAX_LOFILT = 9;
-
 
         public const int W_TREELEN = 20;
         public const int Q_TREELEN = 64;
@@ -52,7 +46,5 @@ namespace Wsqm
         public const int ANY_WSQ = 0xffff;
         public const int TBLS_N_SOF = 2;
         public const int TBLS_N_SOB = TBLS_N_SOF + 2;
-
-
     }
 }

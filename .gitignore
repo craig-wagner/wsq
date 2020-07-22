@@ -1,0 +1,23 @@
+﻿# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+/.vs
+.vscode/*
+/src/Robin.WebApp/wwwroot
+/src/Robin.WebApp/.test_output/coverage
+/src/Robin.WebApp/test_output/coverage
+/src/Robin.WebApp/test-report.xml
+.DS_Store
+/src/Robin.WebApp/Views/Shared/_Layout.cshtml
+/src/Robin.WebApp/appsettings.Development.json
+/src/RobinDataMigrator/Properties/launchSettings.json
+JsCodeCoverage

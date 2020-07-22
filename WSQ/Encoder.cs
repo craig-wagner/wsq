@@ -1,19 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 //******
 using System.IO;
-
-
+using System.Text;
 
 namespace Wsqm
 {
-    internal class Encoder : WSQConstants
+    internal class Encoder
     {
-        public void encode(DataOutput dataOutput, cBitmap bitmap,
-                                double bitRate, String[] comments)
+        public void encode(DataOutput dataOutput, BitmapWrapper bitmap, double bitRate, String[] comments)
         {
             try
             {
@@ -23,54 +19,56 @@ namespace Wsqm
             {
                 throw (e);
             }
-
         }
 
-        public void encode(DataOutput dataOutput, cBitmap _bitmap, double bitRate, Dictionary<String, String> metadata, String[] comments)
+        public void encode(DataOutput dataOutput, BitmapWrapper bitmapWrapper, double bitRate,
+            Dictionary<string, string> metadata, string[] comments)
         {
             try
             {
-                cBitmapWithMetadata bitmap;
-                if (_bitmap.GetType() == typeof(cBitmapWithMetadata))
+                BitmapWithMetadata bitmap;
+                if (bitmapWrapper.GetType() == typeof(BitmapWithMetadata))
                 {
-                    bitmap = (cBitmapWithMetadata)_bitmap;
+                    bitmap = (BitmapWithMetadata)bitmapWrapper;
                 }
                 else
                 {
-                    bitmap = new cBitmapWithMetadata(_bitmap.getPixels(), _bitmap.getWidth(), _bitmap.getHeight(), _bitmap.getPpi(), _bitmap.getDepth(), _bitmap.getLossyflag());
+                    bitmap = new BitmapWithMetadata(bitmapWrapper.Pixels, bitmapWrapper.Width, bitmapWrapper.Height, bitmapWrapper.Ppi, bitmapWrapper.Depth, bitmapWrapper.LossyFlag);
                 }
                 if (metadata != null)
                 {
                     foreach (KeyValuePair<String, String> entry in metadata)
                     {
-                        bitmap.getMetadata().Add(entry.Key, entry.Value);
+                        bitmap.Metadata.Add(entry.Key, entry.Value);
                     }
                 }
+
                 //if (metadata != null)
                 //    bitmap.getMetadata().putAll(metadata);
                 if (comments != null)
                     foreach (String s in comments)
                         if (s != null)
-                            bitmap.getComments().Add(s);
+                            bitmap.Comments.Add(s);
 
                 float[] fdata;	/* floating point pixel image  */
                 int[] qdata;	/* quantized image pointer     */
                 Ref<int> qsize = new Ref<int>(), qsize1 = new Ref<int>(), qsize2 = new Ref<int>(), qsize3 = new Ref<int>();  /* quantized block sizes */
-                WSQHelper.HuffCode[] hufftable;
+                WsqHelper.HuffCode[] hufftable;
+
                 //Ref<int[]> huffbits = new Ref<int[]>(), huffvalues = new Ref<int[]>(); /* huffman code parameters */
                 Ref<int> huffbits = new Ref<int>(), huffvalues = new Ref<int>(); /* huffman code parameters */
 
                 /* Convert image pixels to floating point. */
                 Ref<float> m_shift = new Ref<float>(), r_scale = new Ref<float>();
-                fdata = convertImageToFloat(bitmap.getPixels(), bitmap.getWidth(), bitmap.getHeight(), m_shift, r_scale);
+                fdata = convertImageToFloat(bitmap.Pixels, bitmap.Width, bitmap.Height, m_shift, r_scale);
 
                 Token token = new Token();
 
                 /* Build WSQ decomposition trees */
-                WSQHelper.buildWSQTrees(token, bitmap.getWidth(), bitmap.getHeight());
+                WsqHelper.buildWSQTrees(token, bitmap.Width, bitmap.Height);
 
                 /* WSQ decompose the image */
-                wsqDecompose(token, fdata, bitmap.getWidth(), bitmap.getHeight(), token.tableDTT.hifilt, MAX_HIFILT, token.tableDTT.lofilt, MAX_LOFILT);
+                WsqDecompose(token, fdata, bitmap.Width, bitmap.Height, token.tableDTT.hifilt, WsqConstants.MAX_HIFILT, token.tableDTT.lofilt, WsqConstants.MAX_LOFILT);
 
                 /* Set compression ratio and 'q' to zero. */
                 token.quant_vals.cr = 0;
@@ -80,11 +78,11 @@ namespace Wsqm
                 token.quant_vals.r = (float)bitRate;
 
                 /* Compute subband variances. */
-                variance(token, fdata, bitmap.getWidth(), bitmap.getHeight());
+                variance(token, fdata, bitmap.Width, bitmap.Height);
 
                 /* Quantize the floating point pixmap. */
 
-                qdata = quantize(token, qsize, fdata, bitmap.getWidth(), bitmap.getHeight());
+                qdata = quantize(token, qsize, fdata, bitmap.Width, bitmap.Height);
 
                 /* Compute quantized WSQ subband block sizes */
                 quant_block_sizes(token, qsize1, qsize2, qsize3);
@@ -95,51 +93,50 @@ namespace Wsqm
                 }
 
                 /* Add a Start Of Image (SOI) marker to the WSQ buffer. */
-                dataOutput.writeShort(SOI_WSQ);
+                dataOutput.writeShort(WsqConstants.SOI_WSQ);
 
                 putc_nistcom_wsq(dataOutput, bitmap, (float)bitRate, metadata, comments);
 
                 /* Store the Wavelet filter taps to the WSQ buffer. */
-                putc_transform_table(dataOutput, token.tableDTT.lofilt, MAX_LOFILT, token.tableDTT.hifilt, MAX_HIFILT);
+                putc_transform_table(dataOutput, token.tableDTT.lofilt, WsqConstants.MAX_LOFILT, token.tableDTT.hifilt, WsqConstants.MAX_HIFILT);
 
                 /* Store the quantization parameters to the WSQ buffer. */
                 putc_quantization_table(dataOutput, token);
 
                 /* Store a frame header to the WSQ buffer. */
-                putc_frame_header_wsq(dataOutput, bitmap.getWidth(), bitmap.getHeight(), m_shift.value, r_scale.value);
+                putc_frame_header_wsq(dataOutput, bitmap.Width, bitmap.Height, m_shift.value, r_scale.value);
 
                 /* ENCODE Block 1 */
 
                 /* Compute Huffman table for Block 1. */
                 hufftable = gen_hufftable_wsq(token, huffbits, huffvalues, qdata, 0, new int[] { qsize1.value });
 
-
-
                 /* Store Huffman table for Block 1 to WSQ buffer. */
+
                 //putc_huffman_table(dataOutput, DHT_WSQ, 0, huffbits.value, huffvalues.value);
-                putc_huffman_table(dataOutput, WSQConstants.DHT_WSQ, 0, huffbits.valueT, huffvalues.valueT);
+                putc_huffman_table(dataOutput, WsqConstants.DHT_WSQ, 0, huffbits.valueT, huffvalues.valueT);
 
                 /* Store Block 1's header to WSQ buffer. */
                 putc_block_header(dataOutput, 0);
 
                 /* Compress Block 1 data. */
-                compress_block(dataOutput, qdata, 0, qsize1.value, MAX_HUFFCOEFF, MAX_HUFFZRUN, hufftable);
+                compress_block(dataOutput, qdata, 0, qsize1.value, WsqConstants.MAX_HUFFCOEFF, WsqConstants.MAX_HUFFZRUN, hufftable);
 
                 /* ENCODE Block 2 */
 
                 /* Compute  Huffman table for Blocks 2 & 3. */
                 hufftable = gen_hufftable_wsq(token, huffbits, huffvalues, qdata, qsize1.value, new int[] { qsize2.value, qsize3.value });
 
-
                 /* Store Huffman table for Blocks 2 & 3 to WSQ buffer. */
+
                 //putc_huffman_table(dataOutput, DHT_WSQ, 1, huffbits.value, huffvalues.value);
-                putc_huffman_table(dataOutput, WSQConstants.DHT_WSQ, 1, huffbits.valueT, huffvalues.valueT);
+                putc_huffman_table(dataOutput, WsqConstants.DHT_WSQ, 1, huffbits.valueT, huffvalues.valueT);
 
                 /* Store Block 2's header to WSQ buffer. */
                 putc_block_header(dataOutput, 1);
 
                 /* Compress Block 2 data. */
-                compress_block(dataOutput, qdata, qsize1.value, qsize2.value, MAX_HUFFCOEFF, MAX_HUFFZRUN, hufftable);
+                compress_block(dataOutput, qdata, qsize1.value, qsize2.value, WsqConstants.MAX_HUFFCOEFF, WsqConstants.MAX_HUFFZRUN, hufftable);
 
                 /* ENCODE Block 3 */
 
@@ -147,19 +144,17 @@ namespace Wsqm
                 putc_block_header(dataOutput, 1);
 
                 /* Compress Block 3 data. */
-                compress_block(dataOutput, qdata, qsize1.value + qsize2.value, qsize3.value, MAX_HUFFCOEFF, MAX_HUFFZRUN, hufftable);
+                compress_block(dataOutput, qdata, qsize1.value + qsize2.value, qsize3.value, WsqConstants.MAX_HUFFCOEFF, WsqConstants.MAX_HUFFZRUN, hufftable);
 
                 /* Add a End Of Image (EOI) marker to the WSQ buffer. */
-                dataOutput.writeShort(EOI_WSQ);
+                dataOutput.writeShort(WsqConstants.EOI_WSQ);
 
                 File.WriteAllBytes(dataOutput.RutaDestino, dataOutput.ObtenerBuffer());
-
             }
             catch (IOException e)
             {
                 throw (e);
             }
-
         }
 
         /// <summary>
@@ -221,19 +216,13 @@ namespace Wsqm
             }
             return fip;
         }
+
         /// <summary>
         /// WSQ decompose the image.  NOTE: this routine modifies and returns
-        /// the results in "fdata"  
+        /// the results in "fdata"
         /// </summary>
-        /// <param name="token"></param>
-        /// <param name="fdata"></param>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
-        /// <param name="hifilt"></param>
-        /// <param name="hisz"></param>
-        /// <param name="lofilt"></param>
-        /// <param name="losz"></param>
-        private void wsqDecompose(Token token, float[] fdata, int width, int height, float[] hifilt, int hisz, float[] lofilt, int losz)
+        private void WsqDecompose(Token token, float[] fdata, int width, int height, float[] hifilt, int hisz,
+            float[] lofilt, int losz)
         {
             int num_pix = width * height;
             /* Allocate temporary floating point pixmap. */
@@ -249,7 +238,6 @@ namespace Wsqm
                 getLets(fdata, fdata1, fdataBse, 0, token.wtree[node].lenx, token.wtree[node].leny,
                         1, width, hifilt, hisz, lofilt, losz, token.wtree[node].invcl);
             }
-
         }
 
         private void getLets(float[] newdata,     /* image pointers for creating subband splits */
@@ -564,7 +552,7 @@ namespace Wsqm
             //This part is needed to comply with WSQ 3.1
             if (vsum < 20000.0)
             {
-                for (int cvr = 0; cvr < WSQConstants.NUM_SUBBANDS; cvr++)
+                for (int cvr = 0; cvr < WsqConstants.NUM_SUBBANDS; cvr++)
                 {
                     fp = (token.qtree[cvr].y * width) + token.qtree[cvr].x;
                     ssq = 0;
@@ -588,7 +576,7 @@ namespace Wsqm
             }
             else
             {
-                for (int cvr = 4; cvr < WSQConstants.NUM_SUBBANDS; cvr++)
+                for (int cvr = 4; cvr < WsqConstants.NUM_SUBBANDS; cvr++)
                 {
                     fp = (token.qtree[cvr].y * width) + token.qtree[cvr].x;
                     ssq = 0;
@@ -614,7 +602,6 @@ namespace Wsqm
                     token.quant_vals.var[cvr] = (float)((ssq - sum2) / ((lenx * leny) - 1.0));
                 }
             }
-
         }
 
         /// <summary>
@@ -630,15 +617,15 @@ namespace Wsqm
         {
             int row, col;          /* temp image characteristic parameters */
             float zbin;            /* zero bin size */
-            float[] A = new float[WSQConstants.NUM_SUBBANDS]; /* subband "weights" for quantization */
-            float[] m = new float[WSQConstants.NUM_SUBBANDS]; /* subband size to image size ratios */
+            float[] A = new float[WsqConstants.NUM_SUBBANDS]; /* subband "weights" for quantization */
+            float[] m = new float[WsqConstants.NUM_SUBBANDS]; /* subband size to image size ratios */
             /* (reciprocal of FBI spec for 'm')  */
             float m1, m2, m3;      /* reciprocal constants for 'm' */
-            float[] sigma = new float[WSQConstants.NUM_SUBBANDS]; /* square root of subband variances */
-            int[] K0 = new int[WSQConstants.NUM_SUBBANDS];  /* initial list of subbands w/variance >= thresh */
-            int[] K1 = new int[WSQConstants.NUM_SUBBANDS];  /* working list of subbands */
+            float[] sigma = new float[WsqConstants.NUM_SUBBANDS]; /* square root of subband variances */
+            int[] K0 = new int[WsqConstants.NUM_SUBBANDS];  /* initial list of subbands w/variance >= thresh */
+            int[] K1 = new int[WsqConstants.NUM_SUBBANDS];  /* working list of subbands */
             int K, nK;           /* pointers to sets of subbands */
-            bool[] NP = new bool[WSQConstants.NUM_SUBBANDS];  /* current subbounds with nonpositive bit rates. */
+            bool[] NP = new bool[WsqConstants.NUM_SUBBANDS];  /* current subbounds with nonpositive bit rates. */
             int K0len;             /* number of subbands in K0 */
             int Klen, nKlen;       /* number of subbands in other subband lists */
             int NPlen;             /* number of subbands flagged in NP */
@@ -647,29 +634,29 @@ namespace Wsqm
             float P;               /* product of 'q/Q' ratios */
 
             /* Set up 'A' table. */
-            for (int cnt = 0; cnt < WSQConstants.STRT_SUBBAND_3; cnt++)
+            for (int cnt = 0; cnt < WsqConstants.STRT_SUBBAND_3; cnt++)
             {
                 A[cnt] = 1.0f;
             }
-            A[WSQConstants.STRT_SUBBAND_3 /*52*/] = 1.32f;
-            A[WSQConstants.STRT_SUBBAND_3 + 1 /*53*/] = 1.08f;
-            A[WSQConstants.STRT_SUBBAND_3 + 2 /*54*/] = 1.42f;
-            A[WSQConstants.STRT_SUBBAND_3 + 3 /*55*/] = 1.08f;
-            A[WSQConstants.STRT_SUBBAND_3 + 4 /*56*/] = 1.32f;
-            A[WSQConstants.STRT_SUBBAND_3 + 5 /*57*/] = 1.42f;
-            A[WSQConstants.STRT_SUBBAND_3 + 6 /*58*/] = 1.08f;
-            A[WSQConstants.STRT_SUBBAND_3 + 7 /*59*/] = 1.08f;
+            A[WsqConstants.STRT_SUBBAND_3 /*52*/] = 1.32f;
+            A[WsqConstants.STRT_SUBBAND_3 + 1 /*53*/] = 1.08f;
+            A[WsqConstants.STRT_SUBBAND_3 + 2 /*54*/] = 1.42f;
+            A[WsqConstants.STRT_SUBBAND_3 + 3 /*55*/] = 1.08f;
+            A[WsqConstants.STRT_SUBBAND_3 + 4 /*56*/] = 1.32f;
+            A[WsqConstants.STRT_SUBBAND_3 + 5 /*57*/] = 1.42f;
+            A[WsqConstants.STRT_SUBBAND_3 + 6 /*58*/] = 1.08f;
+            A[WsqConstants.STRT_SUBBAND_3 + 7 /*59*/] = 1.08f;
 
-            for (int cnt = 0; cnt < WSQConstants.MAX_SUBBANDS; cnt++)
+            for (int cnt = 0; cnt < WsqConstants.MAX_SUBBANDS; cnt++)
             {
                 token.quant_vals.qbss[cnt] = 0.0f;
                 token.quant_vals.qzbs[cnt] = 0.0f;
             }
 
             /* Set up 'Q1' (prime) table. */
-            for (int cnt = 0; cnt < WSQConstants.NUM_SUBBANDS; cnt++)
+            for (int cnt = 0; cnt < WsqConstants.NUM_SUBBANDS; cnt++)
             {
-                if (token.quant_vals.var[cnt] < WSQConstants.VARIANCE_THRESH)
+                if (token.quant_vals.var[cnt] < WsqConstants.VARIANCE_THRESH)
                 {
                     token.quant_vals.qbss[cnt] = 0.0f;
                 }
@@ -677,7 +664,7 @@ namespace Wsqm
                 {
                     /* NOTE: q has been taken out of the denominator in the next */
                     /*       2 formulas from the original code. */
-                    if (cnt < WSQConstants.STRT_SIZE_REGION_2 /*4*/)
+                    if (cnt < WsqConstants.STRT_SIZE_REGION_2 /*4*/)
                     {
                         token.quant_vals.qbss[cnt] = 1.0f;
                     }
@@ -696,24 +683,24 @@ namespace Wsqm
             m1 = 1.0f / 1024.0f;
             m2 = 1.0f / 256.0f;
             m3 = 1.0f / 16.0f;
-            for (int cnt = 0; cnt < WSQConstants.STRT_SIZE_REGION_2; cnt++)
+            for (int cnt = 0; cnt < WsqConstants.STRT_SIZE_REGION_2; cnt++)
             {
                 m[cnt] = m1;
             }
-            for (int cnt = WSQConstants.STRT_SIZE_REGION_2; cnt < WSQConstants.STRT_SIZE_REGION_3; cnt++)
+            for (int cnt = WsqConstants.STRT_SIZE_REGION_2; cnt < WsqConstants.STRT_SIZE_REGION_3; cnt++)
             {
                 m[cnt] = m2;
             }
-            for (int cnt = WSQConstants.STRT_SIZE_REGION_3; cnt < WSQConstants.NUM_SUBBANDS; cnt++)
+            for (int cnt = WsqConstants.STRT_SIZE_REGION_3; cnt < WsqConstants.NUM_SUBBANDS; cnt++)
             {
                 m[cnt] = m3;
             }
 
             /* Initialize 'K0' and 'K1' lists. */
             K0len = 0;
-            for (int cnt = 0; cnt < WSQConstants.NUM_SUBBANDS; cnt++)
+            for (int cnt = 0; cnt < WsqConstants.NUM_SUBBANDS; cnt++)
             {
-                if (token.quant_vals.var[cnt] >= WSQConstants.VARIANCE_THRESH)
+                if (token.quant_vals.var[cnt] >= WsqConstants.VARIANCE_THRESH)
                 {
                     K0[K0len] = cnt;
                     K1[K0len++] = cnt;
@@ -746,7 +733,7 @@ namespace Wsqm
                 q = ((float)Math.Pow(2, ((token.quant_vals.r / S) - 1.0f)) / 2.5f) / (float)Math.Pow(P, (1.0f / S));
 
                 /* Flag subbands with non-positive bitrate. */
-                NP = new bool[WSQConstants.NUM_SUBBANDS];
+                NP = new bool[WsqConstants.NUM_SUBBANDS];
                 NPlen = 0;
                 for (int i = 0; i < Klen; i++)
                 {
@@ -784,13 +771,13 @@ namespace Wsqm
             nK = 0;
 
             //Arrays.fill(K1, nK, WSQConstants.NUM_SUBBANDS, 0); // was: memset(nK, 0, NUM_SUBBANDS * sizeof(int));
-            Fill(K1, nK, WSQConstants.NUM_SUBBANDS, 0); // was: memset(nK, 0, NUM_SUBBANDS * sizeof(int));
+            Fill(K1, nK, WsqConstants.NUM_SUBBANDS, 0); // was: memset(nK, 0, NUM_SUBBANDS * sizeof(int));
             for (int i = 0; i < K0len; i++)
             {
                 K1[nK + K0[i]] = 1; /* MO: was = TRUE */
             }
             /* Set 'Q' values. */
-            for (int cnt = 0; cnt < WSQConstants.NUM_SUBBANDS; cnt++)
+            for (int cnt = 0; cnt < WsqConstants.NUM_SUBBANDS; cnt++)
             {
                 if (K1[nK + cnt] != 0)
                 {
@@ -804,13 +791,12 @@ namespace Wsqm
             }
 
             /* Now ready to compute and store bin widths for subbands. */
-            for (int cnt = 0; cnt < WSQConstants.NUM_SUBBANDS; cnt++)
+            for (int cnt = 0; cnt < WsqConstants.NUM_SUBBANDS; cnt++)
             {
                 int fptr = (token.qtree[cnt].y * width) + token.qtree[cnt].x;
 
                 if (token.quant_vals.qbss[cnt] != 0.0f)
                 {
-
                     zbin = token.quant_vals.qzbs[cnt] / 2.0f;
 
                     for (row = 0; row < token.qtree[cnt].leny; row++, fptr += width - token.qtree[cnt].lenx)
@@ -839,8 +825,8 @@ namespace Wsqm
             qsize.value = sptr;
 
             return sip;
-
         }
+
         private void Fill<T>(T[] array, int fromIndex, int toIndex, T value)
         {
             if (array == null)
@@ -881,7 +867,7 @@ namespace Wsqm
                     (token.wtree[3].lenx * token.wtree[3].leny);
 
             /* Adjust size of quantized WSQ subband blocks. */
-            for (node = 0; node < WSQConstants.STRT_SUBBAND_2; node++)
+            for (node = 0; node < WsqConstants.STRT_SUBBAND_2; node++)
             {
                 if (token.quant_vals.qbss[node] == 0.0f)
                 {
@@ -889,7 +875,7 @@ namespace Wsqm
                 }
             }
 
-            for (node = WSQConstants.STRT_SUBBAND_2; node < WSQConstants.STRT_SUBBAND_3; node++)
+            for (node = WsqConstants.STRT_SUBBAND_2; node < WsqConstants.STRT_SUBBAND_3; node++)
             {
                 if (token.quant_vals.qbss[node] == 0.0f)
                 {
@@ -897,7 +883,7 @@ namespace Wsqm
                 }
             }
 
-            for (node = WSQConstants.STRT_SUBBAND_3; node < WSQConstants.STRT_SUBBAND_DEL; node++)
+            for (node = WsqConstants.STRT_SUBBAND_3; node < WsqConstants.STRT_SUBBAND_DEL; node++)
             {
                 if (token.quant_vals.qbss[node] == 0.0f)
                 {
@@ -908,12 +894,10 @@ namespace Wsqm
             oqsize1.value = qsize1;
             oqsize2.value = qsize2;
             oqsize3.value = qsize3;
-
-
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="dataOutput"></param>
         /// <param name="marker"></param>
@@ -926,9 +910,9 @@ namespace Wsqm
             dataOutput.writeShort(marker);
 
             /* "value(2) + table id(1) + bits(16)" */
-            int table_len = 3 + WSQConstants.MAX_HUFFBITS;
+            int table_len = 3 + WsqConstants.MAX_HUFFBITS;
             int values_offset = table_len;
-            for (int i = 0; i < WSQConstants.MAX_HUFFBITS; i++)
+            for (int i = 0; i < WsqConstants.MAX_HUFFBITS; i++)
             {
                 table_len += huffbits[i];   /* values size */
             }
@@ -940,7 +924,7 @@ namespace Wsqm
             dataOutput.writeByte(tableId & 0xFF);
 
             /* Huffbits (MAX_HUFFBITS) */
-            for (int i = 0; i < WSQConstants.MAX_HUFFBITS; i++)
+            for (int i = 0; i < WsqConstants.MAX_HUFFBITS; i++)
             {
                 dataOutput.writeByte(huffbits[i] & 0xFF);
             }
@@ -950,11 +934,10 @@ namespace Wsqm
             {
                 dataOutput.writeByte(huffvalues[i] & 0xFF);
             }
-
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="dataOutput"></param>
         /// <param name="width"></param>
@@ -969,7 +952,7 @@ namespace Wsqm
                 int scale_ex;         /* exponent scaling parameter */
 
                 int shrt_dat;       /* temp variable */
-                dataOutput.writeShort(WSQConstants.SOF_WSQ); /* +2 = 2 */
+                dataOutput.writeShort(WsqConstants.SOF_WSQ); /* +2 = 2 */
 
                 /* size of frame header */
                 dataOutput.writeShort(17);
@@ -1030,9 +1013,8 @@ namespace Wsqm
             }
         }
 
-
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="dataOutput"></param>
         /// <param name="lofilt"></param>
@@ -1059,7 +1041,7 @@ namespace Wsqm
             {
                 throw new InvalidOperationException("Writing transform table: hisz out of range");
             }
-            dataOutput.writeShort(WSQConstants.DTT_WSQ);
+            dataOutput.writeShort(WsqConstants.DTT_WSQ);
 
             /* table size */
             dataOutput.writeShort(58);
@@ -1101,7 +1083,6 @@ namespace Wsqm
 
                     //int_dat = (int)Math.Round(dbl_tmp / 10.0);
 
-
                     //nueva implementacion
                     dbl_aux = Math.Round(dbl_tmp / 10.0, MidpointRounding.AwayFromZero);
                     int_dat_aux = (long)dbl_aux;
@@ -1116,7 +1097,6 @@ namespace Wsqm
                 dataOutput.writeByte(sign & 0xFF);
                 dataOutput.writeByte(scale_ex & 0xFF);
                 dataOutput.writeInt((int)(int_dat & 0xFFFFFFFFL));
-
             }
 
             for (coef = (hisz >> 1); (int)(coef & 0xFFFFFFFFL) < (long)hisz; coef++)
@@ -1144,6 +1124,7 @@ namespace Wsqm
                         dbl_tmp *= 10.0;
                     }
                     scale_ex -= 1;
+
                     //TODO: La siguiente linea queda reemplazada por
                     //el bloque "nueva implementacion"
 
@@ -1180,7 +1161,7 @@ namespace Wsqm
                 double dbl_aux;
                 long int_data_aux;
 
-                dataOutput.writeShort(WSQConstants.DQT_WSQ);
+                dataOutput.writeShort(WsqConstants.DQT_WSQ);
 
                 /* table size */
                 dataOutput.writeShort(389);
@@ -1207,12 +1188,13 @@ namespace Wsqm
                                     flt_tmp *= 10;
                                 }
                                 scale_ex -= 1;
+
                                 //TODO: La siguiente linea queda reemplazada por
                                 //el bloque "nueva implementacion"
 
                                 //shrt_dat = (int)Math.Round(flt_tmp / 10.0);
 
-                                //nueva implementacion                              
+                                //nueva implementacion
                                 dbl_aux = Math.Round(flt_tmp / 10.0, MidpointRounding.AwayFromZero);
                                 int_data_aux = (long)dbl_aux;
                                 shrt_dat = (int)int_data_aux;
@@ -1233,11 +1215,11 @@ namespace Wsqm
                                     flt_tmp *= 10;
                                 }
                                 scale_ex2 -= 1;
+
                                 //TODO: La siguiente linea queda reemplazada por
                                 //el bloque "nueva implementacion"
 
                                 //shrt_dat2 = (int)Math.Round(flt_tmp / 10.0);
-
 
                                 //nueva implementacion
                                 dbl_aux = Math.Round(flt_tmp / 10.0, MidpointRounding.AwayFromZero);
@@ -1276,7 +1258,6 @@ namespace Wsqm
             {
                 throw (e);
             }
-
         }
 
         /// <summary>
@@ -1288,7 +1269,7 @@ namespace Wsqm
         {
             try
             {
-                dataOutput.writeShort(WSQConstants.SOB_WSQ);
+                dataOutput.writeShort(WsqConstants.SOB_WSQ);
 
                 /* block header size */
                 dataOutput.writeShort(3);
@@ -1302,7 +1283,7 @@ namespace Wsqm
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="dataOutput"></param>
         /// <param name="bitmap"></param>
@@ -1310,22 +1291,23 @@ namespace Wsqm
         /// <param name="metadata"></param>
         /// <param name="comments"></param>
         private void putc_nistcom_wsq(DataOutput dataOutput,
-                                            cBitmap bitmap,
+                                            BitmapWrapper bitmap,
                                             float r_bitrate,
                                             Dictionary<String, String> metadata,
                                             String[] comments)
         {
             Dictionary<String, String> nistcom = new Dictionary<String, String>();
+
             //These attributes will be filled later
-            nistcom.Add(NISTConstants.NCM_HEADER, "---");
-            nistcom.Add(NISTConstants.NCM_PIX_WIDTH, "---");
-            nistcom.Add(NISTConstants.NCM_PIX_HEIGHT, "---");
-            nistcom.Add(NISTConstants.NCM_PIX_DEPTH, "---");
-            nistcom.Add(NISTConstants.NCM_PPI, "---");
-            nistcom.Add(NISTConstants.NCM_LOSSY, "---");
-            nistcom.Add(NISTConstants.NCM_COLORSPACE, "---");
-            nistcom.Add(NISTConstants.NCM_COMPRESSION, "---");
-            nistcom.Add(NISTConstants.NCM_WSQ_RATE, "---");
+            nistcom.Add(NistConstants.NCM_HEADER, "---");
+            nistcom.Add(NistConstants.NCM_PIX_WIDTH, "---");
+            nistcom.Add(NistConstants.NCM_PIX_HEIGHT, "---");
+            nistcom.Add(NistConstants.NCM_PIX_DEPTH, "---");
+            nistcom.Add(NistConstants.NCM_PPI, "---");
+            nistcom.Add(NistConstants.NCM_LOSSY, "---");
+            nistcom.Add(NistConstants.NCM_COLORSPACE, "---");
+            nistcom.Add(NistConstants.NCM_COMPRESSION, "---");
+            nistcom.Add(NistConstants.NCM_WSQ_RATE, "---");
 
             if (metadata != null)
             {
@@ -1335,18 +1317,19 @@ namespace Wsqm
                 }
             }
 
-
             //TODO:VALIDAR SI Convert.ToString(bitmap.HorizontalResolution*bitmap.VerticalResolution) ES CORRECTO
-            nistcom[NISTConstants.NCM_HEADER] = nistcom.Count.ToString();
-            nistcom[NISTConstants.NCM_PIX_WIDTH] = bitmap.getWidth().ToString();
-            nistcom[NISTConstants.NCM_PIX_HEIGHT] = bitmap.getHeight().ToString();
+            nistcom[NistConstants.NCM_HEADER] = nistcom.Count.ToString();
+            nistcom[NistConstants.NCM_PIX_WIDTH] = bitmap.Width.ToString();
+            nistcom[NistConstants.NCM_PIX_HEIGHT] = bitmap.Height.ToString();
+
             //nistcom[NISTConstants.NCM_PPI] = Convert.ToString(bitmap.HorizontalResolution * bitmap.VerticalResolution);
-            nistcom[NISTConstants.NCM_PPI] = Convert.ToString(500);
-            nistcom[NISTConstants.NCM_PIX_DEPTH] = "8"; //WSQ has always 8 bpp
-            nistcom[NISTConstants.NCM_LOSSY] = "1"; //WSQ is always lossy
-            nistcom[NISTConstants.NCM_COLORSPACE] = "GRAY";
-            nistcom[NISTConstants.NCM_COMPRESSION] = "WSQ";
-            nistcom[NISTConstants.NCM_WSQ_RATE] = r_bitrate.ToString();
+            nistcom[NistConstants.NCM_PPI] = Convert.ToString(500);
+            nistcom[NistConstants.NCM_PIX_DEPTH] = "8"; //WSQ has always 8 bpp
+            nistcom[NistConstants.NCM_LOSSY] = "1"; //WSQ is always lossy
+            nistcom[NistConstants.NCM_COLORSPACE] = "GRAY";
+            nistcom[NistConstants.NCM_COMPRESSION] = "WSQ";
+            nistcom[NistConstants.NCM_WSQ_RATE] = r_bitrate.ToString();
+
             //nistcom.Add(NISTConstants.NCM_HEADER     , nistcom.Count.ToString());
             //nistcom.Add(NISTConstants.NCM_PIX_WIDTH  , bitmap.Width.ToString());
             //nistcom.Add(NISTConstants.NCM_PIX_HEIGHT , bitmap.Height.ToString());
@@ -1357,12 +1340,11 @@ namespace Wsqm
             //nistcom.Add(NISTConstants.NCM_COMPRESSION, "WSQ");
             //nistcom.Add(NISTConstants.NCM_WSQ_RATE   , r_bitrate.ToString());
 
-            putc_comment(dataOutput, WSQConstants.COM_WSQ, fetToString(nistcom));
+            putc_comment(dataOutput, WsqConstants.COM_WSQ, fetToString(nistcom));
             if (comments != null)
                 foreach (String s in comments)
                     if (s != null)
-                        putc_comment(dataOutput, WSQConstants.COM_WSQ, s);
-
+                        putc_comment(dataOutput, WsqConstants.COM_WSQ, s);
         }
 
         /// <summary>
@@ -1384,17 +1366,16 @@ namespace Wsqm
 
                 System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
 
-
                 //sbyte[] sbytes = Array.ConvertAll(encoding.GetBytes(comment), q => Convert.ToSByte(q));
 
                 dataOutput.write(encoding.GetBytes(comment)); // FIXME: should be UTF-8. Check FBI spec.
+
                 //dataOutput.write(sbytes); // FIXME: should be UTF-8. Check FBI spec.
             }
             catch (Exception e)
             {
                 throw (e);
             }
-
         }
 
         /// <summary>
@@ -1407,7 +1388,7 @@ namespace Wsqm
         /// <param name="offset"></param>
         /// <param name="block_sizes"></param>
         /// <returns></returns>
-        private WSQHelper.HuffCode[] gen_hufftable_wsq(Token token, Ref<int> ohuffbits, Ref<int> ohuffvalues, int[] sip, int offset, int[] block_sizes)
+        private WsqHelper.HuffCode[] gen_hufftable_wsq(Token token, Ref<int> ohuffbits, Ref<int> ohuffvalues, int[] sip, int offset, int[] block_sizes)
         {
             int[] codesize;       /* code sizes to use */
             Ref<int> last_size = new Ref<int>();       /* last huffvalue */
@@ -1415,40 +1396,40 @@ namespace Wsqm
             int[] huffvalues;   /* huffvalues */
             int[] huffcounts;     /* counts for each huffman category */
             int[] huffcounts2;    /* counts for each huffman category */
-            WSQHelper.HuffCode[] hufftable1, hufftable2;  /* hufftables */
+            WsqHelper.HuffCode[] hufftable1, hufftable2;  /* hufftables */
 
-            huffcounts = count_block(WSQConstants.MAX_HUFFCOUNTS_WSQ, sip, offset, block_sizes[0], WSQConstants.MAX_HUFFCOEFF, WSQConstants.MAX_HUFFZRUN);
+            huffcounts = count_block(WsqConstants.MAX_HUFFCOUNTS_WSQ, sip, offset, block_sizes[0], WsqConstants.MAX_HUFFCOEFF, WsqConstants.MAX_HUFFZRUN);
 
             for (int i = 1; i < block_sizes.Length; i++)
             {
-                huffcounts2 = count_block(WSQConstants.MAX_HUFFCOUNTS_WSQ, sip, offset + block_sizes[i - 1], block_sizes[i], WSQConstants.MAX_HUFFCOEFF, WSQConstants.MAX_HUFFZRUN);
+                huffcounts2 = count_block(WsqConstants.MAX_HUFFCOUNTS_WSQ, sip, offset + block_sizes[i - 1], block_sizes[i], WsqConstants.MAX_HUFFCOEFF, WsqConstants.MAX_HUFFZRUN);
 
-                for (int j = 0; j < WSQConstants.MAX_HUFFCOUNTS_WSQ; j++)
+                for (int j = 0; j < WsqConstants.MAX_HUFFCOUNTS_WSQ; j++)
                 {
                     huffcounts[j] += huffcounts2[j];
                 }
             }
 
-            codesize = find_huff_sizes(huffcounts, WSQConstants.MAX_HUFFCOUNTS_WSQ);
+            codesize = find_huff_sizes(huffcounts, WsqConstants.MAX_HUFFCOUNTS_WSQ);
 
             /* tells if codesize is greater than MAX_HUFFBITS */
             Ref<bool> adjust = new Ref<bool>();
 
-            huffbits = find_num_huff_sizes(adjust, codesize, WSQConstants.MAX_HUFFCOUNTS_WSQ);
+            huffbits = find_num_huff_sizes(adjust, codesize, WsqConstants.MAX_HUFFCOUNTS_WSQ);
 
             if (adjust.value)
             {
                 sort_huffbits(huffbits);
             }
 
-            huffvalues = sort_code_sizes(codesize, WSQConstants.MAX_HUFFCOUNTS_WSQ);
+            huffvalues = sort_code_sizes(codesize, WsqConstants.MAX_HUFFCOUNTS_WSQ);
 
-            hufftable1 = build_huffsizes(last_size, huffbits, WSQConstants.MAX_HUFFCOUNTS_WSQ);
+            hufftable1 = build_huffsizes(last_size, huffbits, WsqConstants.MAX_HUFFCOUNTS_WSQ);
 
             build_huffcodes(hufftable1);
             check_huffcodes_wsq(hufftable1, last_size.value);
 
-            hufftable2 = build_huffcode_table(hufftable1, last_size.value, huffvalues, WSQConstants.MAX_HUFFCOUNTS_WSQ);
+            hufftable2 = build_huffcode_table(hufftable1, last_size.value, huffvalues, WsqConstants.MAX_HUFFCOUNTS_WSQ);
 
             //ohuffbits.value = huffbits;
             //ohuffvalues.value = huffvalues;
@@ -1458,13 +1439,11 @@ namespace Wsqm
             ohuffbits.valueT = huffbits;
             ohuffvalues.valueT = huffvalues;
             return hufftable2;
-
         }
-
 
         /// <summary>
         /// This routine counts the number of occurences of each category
-        /// in the huffman coding tables. 
+        /// in the huffman coding tables.
         /// </summary>
         /// <param name="max_huffcounts">maximum number of counts</param>
         /// <param name="sip">quantized data</param>
@@ -1474,7 +1453,8 @@ namespace Wsqm
         /// <param name="MaxZRun">maximum zero runs</param>
         /// <returns></returns>
         private int[] count_block(
-            // int **ocounts,     /* output count for each huffman catetory */
+
+                // int **ocounts,     /* output count for each huffman catetory */
                 int max_huffcounts,
                 int[] sip,
                 int sip_offset,
@@ -1503,17 +1483,16 @@ namespace Wsqm
             counts[max_huffcounts] = 1;
 
             LoMaxCoeff = 1 - MaxCoeff;
-            state = WSQConstants.COEFF_CODE;
+            state = WsqConstants.COEFF_CODE;
             for (cnt = sip_offset; cnt < sip_siz; cnt++)
             {
                 pix = sip[cnt];
                 switch (state)
                 {
-
-                    case WSQConstants.COEFF_CODE:   /* for runs of zeros */
+                    case WsqConstants.COEFF_CODE:   /* for runs of zeros */
                         if (pix == 0)
                         {
-                            state = WSQConstants.RUN_CODE;
+                            state = WsqConstants.RUN_CODE;
                             rcnt = 1;
                             break;
                         }
@@ -1535,7 +1514,7 @@ namespace Wsqm
                             counts[pix + 180]++; /* within table */
                         break;
 
-                    case WSQConstants.RUN_CODE:  /* get length of zero run */
+                    case WsqConstants.RUN_CODE:  /* get length of zero run */
                         if (pix == 0 && rcnt < 0xFFFF)
                         {
                             ++rcnt;
@@ -1587,17 +1566,17 @@ namespace Wsqm
                             {
                                 counts[pix + 180]++; /* within table */
                             }
-                            state = WSQConstants.COEFF_CODE;
+                            state = WsqConstants.COEFF_CODE;
                         }
                         else
                         {
                             rcnt = 1;
-                            state = WSQConstants.RUN_CODE;
+                            state = WsqConstants.RUN_CODE;
                         }
                         break;
                 }
             }
-            if (state == WSQConstants.RUN_CODE)
+            if (state == WsqConstants.RUN_CODE)
             { /** log zero run length **/
                 if (rcnt <= MaxZRun)
                 {
@@ -1618,7 +1597,6 @@ namespace Wsqm
             }
 
             return counts;
-
         }
 
         /// <summary>
@@ -1633,7 +1611,7 @@ namespace Wsqm
             adjust.value = false;
 
             /* Allocate 2X desired number of bits due to possible codesize. */
-            int[] bits = new int[2 * WSQConstants.MAX_HUFFBITS];
+            int[] bits = new int[2 * WsqConstants.MAX_HUFFBITS];
 
             for (int i = 0; i < max_huffcounts; i++)
             {
@@ -1641,13 +1619,12 @@ namespace Wsqm
                 {
                     bits[codesize[i] - 1]++;
                 }
-                if (codesize[i] > WSQConstants.MAX_HUFFBITS)
+                if (codesize[i] > WsqConstants.MAX_HUFFBITS)
                 {
                     adjust.value = true;
                 }
             }
             return bits;
-
         }
 
         /// <summary>
@@ -1661,7 +1638,7 @@ namespace Wsqm
             /*defines order of huffman codelengths in relation to the code sizes*/
             int[] values = new int[max_huffcounts + 1];
             int i2 = 0;
-            for (int i = 1; i <= (WSQConstants.MAX_HUFFBITS << 1); i++)
+            for (int i = 1; i <= (WsqConstants.MAX_HUFFBITS << 1); i++)
             {
                 for (int i3 = 0; i3 < max_huffcounts; i3++)
                 {
@@ -1673,7 +1650,6 @@ namespace Wsqm
                 }
             }
             return values;
-
         }
 
         /// <summary>
@@ -1683,17 +1659,17 @@ namespace Wsqm
         /// <param name="huffbits"></param>
         /// <param name="max_huffcounts"></param>
         /// <returns></returns>
-        private WSQHelper.HuffCode[] build_huffsizes(Ref<int> temp_size, int[] huffbits, int max_huffcounts)
+        private WsqHelper.HuffCode[] build_huffsizes(Ref<int> temp_size, int[] huffbits, int max_huffcounts)
         {
             int number_of_codes = 1;     /*the number codes for a given code size*/
 
             /* table of huffman codes and sizes */
-            WSQHelper.HuffCode[] huffcode_table = new WSQHelper.HuffCode[max_huffcounts + 1];
-            for (int i = 0; i < huffcode_table.Length; i++) { huffcode_table[i] = new WSQHelper.HuffCode(); }
+            WsqHelper.HuffCode[] huffcode_table = new WsqHelper.HuffCode[max_huffcounts + 1];
+            for (int i = 0; i < huffcode_table.Length; i++) { huffcode_table[i] = new WsqHelper.HuffCode(); }
 
             temp_size.value = 0;
 
-            for (int code_size = 1; code_size <= WSQConstants.MAX_HUFFBITS; code_size++)
+            for (int code_size = 1; code_size <= WsqConstants.MAX_HUFFBITS; code_size++)
             {
                 while (number_of_codes <= huffbits[code_size - 1])
                 {
@@ -1705,7 +1681,6 @@ namespace Wsqm
             }
             huffcode_table[temp_size.value].size = 0;
             return huffcode_table;
-
         }
 
         /// <summary>
@@ -1732,7 +1707,6 @@ namespace Wsqm
 
             while (true)
             {
-
                 int[] values = find_least_freq(freq, max_huffcounts);
                 value1 = values[0];
                 value2 = values[1];
@@ -1762,7 +1736,6 @@ namespace Wsqm
             }
 
             return codesize;
-
         }
 
         /// <summary>
@@ -1822,7 +1795,6 @@ namespace Wsqm
                 }
             }
             return new int[] { value1, value2 };
-
         }
 
         /// <summary>
@@ -1834,13 +1806,13 @@ namespace Wsqm
             int i, j;
             int l1, l2, l3;
 
-            l3 = WSQConstants.MAX_HUFFBITS << 1;       /* 32 */
+            l3 = WsqConstants.MAX_HUFFBITS << 1;       /* 32 */
             l1 = l3 - 1;                /* 31 */
-            l2 = WSQConstants.MAX_HUFFBITS - 1;      /* 15 */
+            l2 = WsqConstants.MAX_HUFFBITS - 1;      /* 15 */
 
             int[] tbits = new int[l3];
 
-            for (i = 0; i < WSQConstants.MAX_HUFFBITS << 1; i++)
+            for (i = 0; i < WsqConstants.MAX_HUFFBITS << 1; i++)
             {
                 tbits[i] = bits[i];
             }
@@ -1869,26 +1841,25 @@ namespace Wsqm
 
             tbits[i] -= 1;
 
-            for (i = 0; i < WSQConstants.MAX_HUFFBITS << 1; i++)
+            for (i = 0; i < WsqConstants.MAX_HUFFBITS << 1; i++)
             {
                 bits[i] = (byte)tbits[i];
             }
 
-            for (i = WSQConstants.MAX_HUFFBITS; i < l3; i++)
+            for (i = WsqConstants.MAX_HUFFBITS; i < l3; i++)
             {
                 if (bits[i] > 0)
                 {
                     throw new InvalidOperationException("ERROR : sort_huffbits : Code length of %d is greater than 16.");
                 }
             }
-
         }
 
         /// <summary>
         /// This routine defines the huffman codes needed for each difference category
         /// </summary>
         /// <param name="huffcode_table"></param>
-        private void build_huffcodes(WSQHelper.HuffCode[] huffcode_table)
+        private void build_huffcodes(WsqHelper.HuffCode[] huffcode_table)
         {
             int pointer = 0;/*pointer to code word information*/
             int temp_code = 0;/*used to construct code word*/
@@ -1915,9 +1886,9 @@ namespace Wsqm
                     temp_size++;
                 } while (huffcode_table[pointer].size != temp_size);
             } while (huffcode_table[pointer].size == temp_size);
-
         }
-        private void check_huffcodes_wsq(WSQHelper.HuffCode[] hufftable, int last_size)
+
+        private void check_huffcodes_wsq(WsqHelper.HuffCode[] hufftable, int last_size)
         {
             Boolean all_ones;
 
@@ -1936,8 +1907,8 @@ namespace Wsqm
                             + "the WSQ specification.");
                 }
             }
-
         }
+
         /// <summary>
         /// routine to sort huffman codes and sizes
         /// </summary>
@@ -1946,11 +1917,11 @@ namespace Wsqm
         /// <param name="values"></param>
         /// <param name="max_huffcounts"></param>
         /// <returns></returns>
-        private WSQHelper.HuffCode[] build_huffcode_table(WSQHelper.HuffCode[] in_huffcode_table,
+        private WsqHelper.HuffCode[] build_huffcode_table(WsqHelper.HuffCode[] in_huffcode_table,
                 int last_size, int[] values, int max_huffcounts)
         {
-            WSQHelper.HuffCode[] new_huffcode_table = new WSQHelper.HuffCode[max_huffcounts + 1];
-            for (int i = 0; i < new_huffcode_table.Length; i++) { new_huffcode_table[i] = new WSQHelper.HuffCode(); }
+            WsqHelper.HuffCode[] new_huffcode_table = new WsqHelper.HuffCode[max_huffcounts + 1];
+            for (int i = 0; i < new_huffcode_table.Length; i++) { new_huffcode_table[i] = new WsqHelper.HuffCode(); }
 
             for (int size = 0; size < last_size; size++)
             {
@@ -1959,7 +1930,6 @@ namespace Wsqm
             }
 
             return new_huffcode_table;
-
         }
 
         /// <summary>
@@ -1978,7 +1948,7 @@ namespace Wsqm
                 int length,
                 int MaxCoeff,  /*   */
                 int MaxZRun,   /*  */
-                WSQHelper.HuffCode[] codes)
+                WsqHelper.HuffCode[] codes)
         {
             try
             {
@@ -2002,7 +1972,7 @@ namespace Wsqm
                 Ref<int> bytes = new Ref<int>(0);
                 Ref<int> bits = new Ref<int>(0);
 
-                state = WSQConstants.COEFF_CODE;
+                state = WsqConstants.COEFF_CODE;
                 for (cnt = offset; cnt < length; cnt++)
                 {
                     pix = sip[cnt];
@@ -2015,11 +1985,10 @@ namespace Wsqm
 
                     switch (state)
                     {
-
-                        case WSQConstants.COEFF_CODE:
+                        case WsqConstants.COEFF_CODE:
                             if (pix == 0)
                             {
-                                state = WSQConstants.RUN_CODE;
+                                state = WsqConstants.RUN_CODE;
                                 rcnt = 1;
                                 break;
                             }
@@ -2060,7 +2029,7 @@ namespace Wsqm
                             }
                             break;
 
-                        case WSQConstants.RUN_CODE:
+                        case WsqConstants.RUN_CODE:
                             if (pix == 0 && rcnt < 0xFFFF)
                             {
                                 ++rcnt;
@@ -2126,17 +2095,17 @@ namespace Wsqm
                                     /* within table */
                                     write_bits(dataOutput, codes[pix + 180].size, codes[pix + 180].code, outbit, bits, bytes);
                                 }
-                                state = WSQConstants.COEFF_CODE;
+                                state = WsqConstants.COEFF_CODE;
                             }
                             else
                             {
                                 rcnt = 1;
-                                state = WSQConstants.RUN_CODE;
+                                state = WsqConstants.RUN_CODE;
                             }
                             break;
                     }
                 }
-                if (state == WSQConstants.RUN_CODE)
+                if (state == WsqConstants.RUN_CODE)
                 {
                     if (rcnt <= MaxZRun)
                     {
@@ -2164,7 +2133,6 @@ namespace Wsqm
             {
                 throw (e);
             }
-
         }
 
         private String fetToString(Dictionary<String, String> fet)
@@ -2186,14 +2154,12 @@ namespace Wsqm
                     result.Append("\n");
                 }
 
-
                 return result.ToString();
             }
             catch (Exception e)
             {
                 throw new SystemException(e.Message);
             }
-
         }
 
         /// <summary>
@@ -2241,12 +2207,11 @@ namespace Wsqm
             {
                 throw (e);
             }
-
         }
 
         /// <summary>
         /// Routine to "flush" left over bits in last
-        /// byte after compressing a block. 
+        /// byte after compressing a block.
         /// </summary>
         /// <param name="outbuf">output data buffer</param>
         /// <param name="outbit">current bit location in out buffer byte</param>
@@ -2260,7 +2225,6 @@ namespace Wsqm
         {
             try
             {
-
                 int cnt; /* temp counter */
 
                 if (outbit.value != 7)
@@ -2286,7 +2250,6 @@ namespace Wsqm
             {
                 throw (e);
             }
-
         }
     }
 }

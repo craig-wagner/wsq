@@ -1,19 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace Wsqm
 {
-    internal class WSQHelper : WSQConstants
+    internal class WsqHelper
     {
-       
-                      
         public class HuffCode
         {
             public int size;
             public int code;
         }
+
         public class HeaderFrm
         {
             public int black;
@@ -34,15 +31,15 @@ namespace Wsqm
             public int[] huffbits;
             public int[] huffvalues;
         }
-        
 
         public static void buildWSQTrees(Token token, int width, int height)
         {
             /* Build a W-TREE structure for the image. */
-            buildWTree(token, WSQHelper.W_TREELEN, width, height);
+            buildWTree(token, WsqConstants.W_TREELEN, width, height);
             /* Build a Q-TREE structure for the image. */
-            buildQTree(token, WSQHelper.Q_TREELEN);
+            buildQTree(token, WsqConstants.Q_TREELEN);
         }
+
         public static void buildWTree(Token token, int wtreelen, int width, int height)
         {
             int lenx, lenx2, leny, leny2;  /* starting lengths of sections of
@@ -112,6 +109,7 @@ namespace Wsqm
             else
                 token.wtree[19].leny = (token.wtree[15].leny + 1) / 2;
         }
+
         public static void wtree4(Token token, int start1, int start2, int lenx, int leny, int x, int y, int stop1)
         {
             int evenx, eveny;   /* Check length of subband for even or odd */
@@ -159,7 +157,6 @@ namespace Wsqm
             }
             token.wtree[p2 + 2].lenx = token.wtree[p2].lenx;
 
-
             if (eveny == 0)
             {
                 token.wtree[p2].leny = leny / 2;
@@ -186,6 +183,7 @@ namespace Wsqm
             }
             token.wtree[p2 + 1].leny = token.wtree[p2].leny;
         }
+
         public static void buildQTree(Token token, int qtreelen)
         {
             token.qtree = new QuantTree[qtreelen];
@@ -200,6 +198,7 @@ namespace Wsqm
             qtree16(token, 35, token.wtree[5].lenx, token.wtree[5].leny, token.wtree[5].x, token.wtree[5].y, 1, 0);
             qtree4(token, 0, token.wtree[19].lenx, token.wtree[19].leny, token.wtree[19].x, token.wtree[19].y);
         }
+
         public static void qtree4(Token token, int start, int lenx, int leny, int x, int y)
         {
             int evenx, eveny;    /* Check length of subband for even or odd */
@@ -208,7 +207,6 @@ namespace Wsqm
             p = start;
             evenx = lenx % 2;
             eveny = leny % 2;
-
 
             token.qtree[p].x = x;
             token.qtree[p + 2].x = x;
@@ -247,6 +245,7 @@ namespace Wsqm
             token.qtree[p + 2].y = y + token.qtree[p].leny;
             token.qtree[p + 3].y = token.qtree[p + 2].y;
         }
+
         public static void qtree16(Token token, int start, int lenx, int leny, int x, int y, int rw, int cl)
         {
             int tempx, temp2x;   /* temporary x values */
@@ -365,7 +364,6 @@ namespace Wsqm
             token.qtree[p + 5].x = token.qtree[p + 4].x + token.qtree[p + 4].lenx;
             token.qtree[p + 7].x = token.qtree[p + 5].x;
 
-
             eveny = temp2y % 2;
 
             token.qtree[p + 8].x = x;
@@ -395,7 +393,6 @@ namespace Wsqm
             token.qtree[p + 10].y = token.qtree[p + 8].y + token.qtree[p + 8].leny;
             token.qtree[p + 11].y = token.qtree[p + 10].y;
 
-
             token.qtree[p + 12].x = token.qtree[p + 4].x;
             token.qtree[p + 13].x = token.qtree[p + 5].x;
             token.qtree[p + 14].x = token.qtree[p + 4].x;
@@ -422,16 +419,18 @@ namespace Wsqm
         public int lenx;  /* block size */
         public int leny;  /* block size */
     }
+
     internal class Quantization
     {
         public float q; /* quantization level */
         public float cr; /* compression ratio */
         public float r; /* compression bitrate */
-        public float[] qbss_t = new float[WSQConstants.MAX_SUBBANDS];
-        public float[] qbss = new float[WSQConstants.MAX_SUBBANDS];
-        public float[] qzbs = new float[WSQConstants.MAX_SUBBANDS];
-        public float[] var = new float[WSQConstants.MAX_SUBBANDS];
+        public float[] qbss_t = new float[WsqConstants.MAX_SUBBANDS];
+        public float[] qbss = new float[WsqConstants.MAX_SUBBANDS];
+        public float[] qzbs = new float[WsqConstants.MAX_SUBBANDS];
+        public float[] var = new float[WsqConstants.MAX_SUBBANDS];
     }
+
     internal class WavletTree
     {
         public int x;
@@ -441,6 +440,7 @@ namespace Wsqm
         public int invrw;
         public int invcl;
     }
+
     internal class Table_DQT
     {
         public const int MAX_SUBBANDS = 64;
@@ -449,17 +449,18 @@ namespace Wsqm
         public float[] zBin = new float[MAX_SUBBANDS];
         public char dqtDef;
     }
+
     internal class TableDTT
     {
         private static float[] HI_FILT_EVEN_8X8_1 = {
-			0.03226944131446922f,
-			-0.05261415011924844f,
-			-0.18870142780632693f,
-			0.60328894481393847f,
-			-0.60328894481393847f,
-			0.18870142780632693f,
-			0.05261415011924844f,
-			-0.03226944131446922f };
+            0.03226944131446922f,
+            -0.05261415011924844f,
+            -0.18870142780632693f,
+            0.60328894481393847f,
+            -0.60328894481393847f,
+            0.18870142780632693f,
+            0.05261415011924844f,
+            -0.03226944131446922f };
 
         private static float[] LO_FILT_EVEN_8X8_1 =  {
             0.07565691101399093f,
@@ -491,7 +492,6 @@ namespace Wsqm
             -0.02384946501938000f,
             0.03782845550699546f };
 
-
         public float[] lofilt = LO_FILT_NOT_EVEN_8X8_1;
         public float[] hifilt = HI_FILT_NOT_EVEN_8X8_1;
         public int losz;
@@ -499,6 +499,7 @@ namespace Wsqm
         public int lodef;
         public int hidef;
     }
+
     internal class TableDHT
     {
         private const int MAX_HUFFBITS = 16; /*DO NOT CHANGE THIS CONSTANT!! */
@@ -508,9 +509,10 @@ namespace Wsqm
         public int[] huffbits = new int[MAX_HUFFBITS];
         public int[] huffvalues = new int[MAX_HUFFCOUNTS_WSQ + 1];
     }
+
     internal class Token
     {
-        public TableDHT[] tableDHT = new TableDHT[WSQConstants.MAX_DHT_TABLES];
+        public TableDHT[] tableDHT = new TableDHT[WsqConstants.MAX_DHT_TABLES];
         public TableDTT tableDTT = new TableDTT();
         public Table_DQT tableDQT = new Table_DQT();
 
@@ -523,13 +525,14 @@ namespace Wsqm
         public Token()
         {
             /* Init DHT Tables to 0. */
-            for (int i = 0; i < WSQConstants.MAX_DHT_TABLES; i++)
+            for (int i = 0; i < WsqConstants.MAX_DHT_TABLES; i++)
             {
                 tableDHT[i] = new TableDHT();
                 tableDHT[i].tabdef = 0;
             }
         }
     }
+
     internal class Ref<T>
     {
         private List<T> valor;
@@ -542,10 +545,7 @@ namespace Wsqm
             {
                 buffer[i] = valor[i];
             }
-
-
         }
-
 
         public Ref()
         {
@@ -559,6 +559,7 @@ namespace Wsqm
             valor = new List<T>();
             valor.Add(val);
         }
+
         public T value
         {
             get { return valor[valor.Count - 1]; }
@@ -571,6 +572,7 @@ namespace Wsqm
                 valor.Add(val);
             }
         }
+
         public T[] valueT
         {
             get
@@ -585,11 +587,10 @@ namespace Wsqm
                 for (int i = 0; i < value.Length; i++)
                 {
                     valor.Add(value[i]);
-
                 }
-
             }
         }
+
         public void write(T[] val)
         {
             if (valor == null)
@@ -599,18 +600,20 @@ namespace Wsqm
                 valor.Add(b);
         }
     }
+
     internal class DataOutput
     {
         //private byte[] buffer;
         //public int pointer;
         private List<byte> LBuffer;
+
         private String _RutaDestino;
 
         public String RutaDestino
         {
             get { return _RutaDestino; }
-            set {_RutaDestino = value;}
-        } 
+            set { _RutaDestino = value; }
+        }
 
         public byte[] ObtenerBuffer()
         {
@@ -628,20 +631,22 @@ namespace Wsqm
         {
             LBuffer = new List<byte>();
         }
+
         public void write(byte val)
         {
             LBuffer.Add(val);
         }
+
         public void write(byte[] val)
         {
             foreach (byte b in val)
                 LBuffer.Add(b);
         }
+
         public void write(int val)
         {
             byte aux = (byte)(0xff & val);
             LBuffer.Add(aux);
-
 
             //byte[] aux = new byte[sizeof(int)];
             //aux[0] = 0;
@@ -649,18 +654,14 @@ namespace Wsqm
             //aux[2] = 0;
             //aux[3] = (byte)(0xff & val);
 
-
-
             //foreach (byte b in aux)
             //    LBuffer.Add(b);
-
-
-
         }
+
         public void writeShort(int val)
         {
-            //Writes two bytes to the output stream to represent the value 
-            //of the argument. The byte values to be written, 
+            //Writes two bytes to the output stream to represent the value
+            //of the argument. The byte values to be written,
             //in the order shown, are:
 
             byte[] aux = new byte[2];
@@ -675,21 +676,20 @@ namespace Wsqm
 
             foreach (byte b in aux)
                 LBuffer.Add(b);
-
-
         }
+
         public void writeByte(int val)
         {
-
-            //Writes to the output stream the eight low- order bits of 
-            //the argument v. The 24 high-order bits of v are ignored. 
-            //(This means that writeByte does exactly the same thing as 
-            //write for an integer argument.) The byte written by this 
-            //method may be read by the readByte method of interface DataInput, 
+            //Writes to the output stream the eight low- order bits of
+            //the argument v. The 24 high-order bits of v are ignored.
+            //(This means that writeByte does exactly the same thing as
+            //write for an integer argument.) The byte written by this
+            //method may be read by the readByte method of interface DataInput,
             //which will then return a byte equal to (byte)v.
             byte aux = (byte)(0xff & val);
             LBuffer.Add(aux);
         }
+
         public void writeInt(int val)
         {
             byte[] aux = new byte[sizeof(int)];
@@ -697,41 +697,45 @@ namespace Wsqm
             aux[1] = (byte)(0xff & (val >> 16));
             aux[2] = (byte)(0xff & (val >> 8));
             aux[3] = (byte)(0xff & val);
+
             //aux = BitConverter.GetBytes(val);
 
             foreach (byte b in aux)
                 LBuffer.Add(b);
         }
-
     }
 
     internal class DataInput
     {
         private byte[] _buffer;
         private int pointer;
+
         public DataInput(byte[] info)
         {
             _buffer = info;
             pointer = 0;
         }
+
         public byte[] buffer
         {
             get { return _buffer; }
-           
         }
+
         public int readUnsignedShort()
         {
             int byte1 = _buffer[pointer++];
             int byte2 = _buffer[pointer++];
-            
+
             return (0xff & byte1) << 8 | (0xff & byte2);
         }
+
         public int readUnsignedByte()
         {
             byte byte1 = buffer[pointer++];
 
             return 0xff & byte1;
         }
+
         public long readInt()
         {
             byte byte1 = buffer[pointer++];
@@ -741,6 +745,7 @@ namespace Wsqm
 
             return (0xffL & byte1) << 24 | (0xffL & byte2) << 16 | (0xffL & byte3) << 8 | (0xffL & byte4);
         }
+
         public byte[] readBytes(int size)
         {
             byte[] bytes = new byte[size];
@@ -753,10 +758,10 @@ namespace Wsqm
             return bytes;
         }
     }
+
     internal class IntRef
     {
         public int value;
-
 
         public IntRef()
         {
@@ -767,6 +772,7 @@ namespace Wsqm
             this.value = value;
         }
     }
+
     internal class TokenD
     {
         public TableDHT[] tableDHT;
@@ -783,7 +789,6 @@ namespace Wsqm
 
         public TokenD()
         {
-
             initialize();
         }
 
@@ -802,8 +807,8 @@ namespace Wsqm
             comments = new List<String>();
 
             /* Init DHT Tables to 0. */
-            tableDHT = new TableDHT[WSQConstants.MAX_DHT_TABLES];
-            for (int i = 0; i < WSQConstants.MAX_DHT_TABLES; i++)
+            tableDHT = new TableDHT[WsqConstants.MAX_DHT_TABLES];
+            for (int i = 0; i < WsqConstants.MAX_DHT_TABLES; i++)
             {
                 tableDHT[i] = new TableDHT();
                 tableDHT[i].tabdef = 0;
@@ -847,5 +852,4 @@ namespace Wsqm
             return bytes;
         }
     }
-   
 }
